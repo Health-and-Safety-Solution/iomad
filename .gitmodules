@@ -1,0 +1,4 @@
+[submodule "odkintegration"]
+	path = local/odkintegration
+	url = https://github.com/Health-and-Safety-Solution/odkintegration.git
+	branch = master
