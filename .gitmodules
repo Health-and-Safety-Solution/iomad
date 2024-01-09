@@ -13,3 +13,8 @@
 [submodule "blocks/iomad_actions_widget"]
 	path = blocks/iomad_actions_widget
 	url = git@github.com:Health-and-Safety-Solution/iomad_actions_widget.git
+	branch = master
+[submodule "local/advance_email"]
+	path = advance_email
+	url = git@github.com:Health-and-Safety-Solution/advance_email.git
+	branch = master
