@@ -15,6 +15,6 @@
 	url = https://github.com/Health-and-Safety-Solution/iomad_actions_widget.git
 	branch = master
 [submodule "local/advance_email"]
-	path = advance_email
+	path = local/advance_email
 	url = https://github.com/Health-and-Safety-Solution/advance_email.git
 	branch = master
