@@ -1,20 +1,20 @@
 [submodule "local/odkintegration"]
 	path = local/odkintegration
-	url = git@github.com:Health-and-Safety-Solution/odkintegration.git
+	url = https://github.com/Health-and-Safety-Solution/odkintegration.git
 	branch = master
 [submodule "local/iomad_actionlist"]
 	path = local/iomad_actionlist
-	url = git@github.com:Health-and-Safety-Solution/iomad_actionlist.git
+	url = https://github.com/Health-and-Safety-Solution/iomad_actionlist.git
 	branch = master
 [submodule "blocks/odk_forms"]
 	path = blocks/odk_forms
-	url = git@github.com:Health-and-Safety-Solution/odk_forms.git
+	url = https://github.com/Health-and-Safety-Solution/odk_forms.git
 	branch = master
 [submodule "blocks/iomad_actions_widget"]
 	path = blocks/iomad_actions_widget
-	url = git@github.com:Health-and-Safety-Solution/iomad_actions_widget.git
+	url = https://github.com/Health-and-Safety-Solution/iomad_actions_widget.git
 	branch = master
 [submodule "local/advance_email"]
 	path = advance_email
-	url = git@github.com:Health-and-Safety-Solution/advance_email.git
+	url = https://github.com/Health-and-Safety-Solution/advance_email.git
 	branch = master
