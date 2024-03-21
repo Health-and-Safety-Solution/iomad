@@ -56,10 +56,12 @@ class iomad {
      * @returns int
      */
     public static function get_my_companyid($context, $required=true) {
-        global $SESSION, $USER;
+        global $SESSION, $USER, $DB;
 
         // are we logged in?
-        if (during_initial_install() || (empty($USER->id) && empty($SESSION->currenteditingcompany))) {
+        if (during_initial_install() ||
+            (empty($USER->id) && empty($SESSION->currenteditingcompany)) ||
+            !$DB->get_manager()->table_exists('company')) {
             return -1;
         }
 
@@ -409,13 +411,23 @@ class iomad {
     public static function iomad_filter_categories( $categories ) {
         global $DB, $USER;
 
+        $contextsystem = context_system::instance();
+
+        // if we aren't already set up - do nothing.
+        if (!$DB->get_manager()->table_exists('company')) {
+            return $categories;
+        }
+
         // Check if its the client admin.
         if (self::has_capability('block/iomad_company_admin:company_view_all', context_system::instance()) && empty($userid)) {
             return $categories;
         }
 
-        $companyid = iomad::get_my_companyid(context_system::instance());
-        $company = $DB->get_record('company', ['id' => $companyid]);
+        if ($companyid = iomad::get_my_companyid(context_system::instance())) {
+            $company = $DB->get_record('company', ['id' => $companyid]);
+        } else {
+            $company = (object) ['id' => 0];
+        }
 
         // Get the cache objects.
         $allcompanycategoriescache = cache::make('local_iomad', 'allcompanycategories');
@@ -460,7 +472,8 @@ class iomad {
         }
 
         // Get all of the categories of courses assigned to the company.
-        if (!$companycourses = $companycoursecategoriescache->get($company->id)) {
+        if (!empty($company->id) &&
+            !$companycourses = $companycoursecategoriescache->get($company->id)) {
             $companycourses = $DB->get_records_sql("SELECT distinct c.category
                                                     FROM {course} c
                                                     JOIN {company_course} cc ON (c.id = cc.courseid)
