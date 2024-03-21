@@ -1,0 +1,15 @@
+[submodule "local/odkintegration"]
+	path = local/odkintegration
+	url = https://github.com/Health-and-Safety-Solution/odkintegration.git
+[submodule "local/iomad_actionlist"]
+	path = local/iomad_actionlist
+	url = https://github.com/Health-and-Safety-Solution/iomad_actionlist.git
+[submodule "blocks/odk_forms"]
+	path = blocks/odk_forms
+	url = https://github.com/Health-and-Safety-Solution/odk_forms.git
+[submodule "blocks/iomad_actions_widget"]
+	path = blocks/iomad_actions_widget
+	url = https://github.com/Health-and-Safety-Solution/iomad_actions_widget.git
+[submodule "local/advance_email"]
+	path = local/advance_email
+	url = https://github.com/Health-and-Safety-Solution/advance_email.git
