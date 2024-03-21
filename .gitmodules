@@ -13,3 +13,6 @@
 [submodule "local/advance_email"]
 	path = local/advance_email
 	url = https://github.com/Health-and-Safety-Solution/advance_email.git
+[submodule "custom/createAssessmentPDF"]
+	path = custom/createAssessmentPDF
+	url = https://github.com/Health-and-Safety-Solution/createAssessmentPDF.git
