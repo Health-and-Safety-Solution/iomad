@@ -19,3 +19,6 @@
 [submodule "custom/ODK_Project_Management"]
 	path = custom/ODK_Project_Management
 	url = https://github.com/Health-and-Safety-Solution/ODK_Project_Management.git
+[submodule "blocks/iomad_doc_widget"]
+	path = blocks/iomad_doc_widget
+	url = https://github.com/Health-and-Safety-Solution/iomad_doc_widget.git
