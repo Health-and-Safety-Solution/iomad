@@ -39,6 +39,7 @@ $perpage      = optional_param('perpage', $CFG->iomad_max_list_users, PARAM_INT)
 $acl          = optional_param('acl', '0', PARAM_INT);
 $search      = optional_param('search', '', PARAM_CLEAN);// Search string.
 $departmentid = optional_param('deptid', 0, PARAM_INTEGER);
+$viewchildren = optional_param('viewchildren', true, PARAM_BOOL);
 
 $params = array();
 
@@ -110,8 +111,14 @@ $output = $PAGE->get_renderer('block_iomad_company_admin');
 echo $output->header();
 
 // Check the department is valid.
-if (!empty($departmentid) && !company::check_valid_department($companyid, $departmentid)) {
-    throw new moodle_exception('invaliddepartment', 'block_iomad_company_admin');
+if (!empty($departmentid)) {
+    if (!company::check_valid_department($companyid, $departmentid)) {
+        throw new moodle_exception('invaliddepartment', 'block_iomad_company_admin');
+    }
+    $deprecord = $DB->get_record('department', ['id' => $departmentid]);
+    $selectedcompanyid = $deprecord->company;
+} else {
+    $selectedcompanyid = $companyid;
 }
 
 // Get the associated department id.
@@ -220,13 +227,13 @@ $baseurl = new moodle_url(basename(__FILE__), $urlparams);
 $returnurl = $baseurl;
 
 // Set up the filter form.
-$mform = new iomad_user_filter_form(null, array('companyid' => $companyid));
+$mform = new iomad_user_filter_form(null, array('companyid' => $selectedcompanyid));
 $mform->set_data(array('departmentid' => $departmentid));
 $mform->set_data($params);
 $mform->get_data();
 
 // Display the tree selector thing.
-echo $output->display_tree_selector($company, $parentlevel, $baseurl, $params, $departmentid);
+echo $output->display_tree_selector($company, $parentlevel, $baseurl, $params, $departmentid, $viewchildren);
 echo html_writer::start_tag('div', array('class' => 'iomadclear', 'style' => 'padding-top: 5px;'));
 
 // Display the user filter form.
@@ -288,7 +295,7 @@ if ($parentslist = $company->get_parent_companies_recursive()) {
 $selectsql = "DISTINCT u.*,u.timecreated as created, cu.companyid";
 $fromsql = "{user} u JOIN {company_users} cu ON (u.id = cu.userid) JOIN {department} d ON (cu.departmentid = d.id)";
 $wheresql = $searchinfo->sqlsearch . " AND cu.companyid = :companyid $departmentsql $companysql";
-$sqlparams = array('companyid' => $companyid) + $searchinfo->searchparams;
+$sqlparams = array('companyid' => $selectedcompanyid) + $searchinfo->searchparams;
 
 // Set up the headers for the form.
 $headers = array(get_string('fullname'),

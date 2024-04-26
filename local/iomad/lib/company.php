@@ -313,15 +313,29 @@ class company {
      *
      */
     public static function get_companies_select($showsuspended=false, $useprepend = true, $showchildren = true, $sort = 'name', $search = '') {
-        global $DB, $USER;
+        global $CFG, $DB, $USER;
 
         // Is this an admin, or a normal user?
         if (iomad::has_capability('block/iomad_company_admin:company_view_all', context_system::instance())) {
-            if ($showsuspended) {
-                $companies = $DB->get_recordset('company', ['parentid' => 0], 'name', '*');
-            } else {
-                $companies = $DB->get_recordset('company', ['suspended' => 0, 'parentid' => 0], 'name', '*');
+            $sqlparams = [];
+            $sqlwhere = "";
+            if (!empty($CFG->iomad_show_company_structure)) {
+                $sqlparams['parentid'] = 0;
+                $sqlwhere .= " AND parentid = :parentid ";
             }
+            if (!$showsuspended) {
+                $sqlparams['suspended'] = 0;
+                $sqlwhere .= " AND suspended = :suspended ";
+            }
+            if (!empty($search)) {
+                $sqlwhere .= " AND " . $DB->sql_like('name', ':search', false);
+                $sqlparams['search'] = '%' . $DB->sql_like_escape($search) . '%';
+            }
+            $companies = $DB->get_records_sql_menu("SELECT id, IF (suspended=0, name, concat(name, ' (S)')) AS name FROM {company}
+                                                    WHERE 1 = 1
+                                                    $sqlwhere
+                                                    ORDER BY name",
+                                                    $sqlparams);
         } else {
             if ($showsuspended) {
                 $suspendedsql = '';
@@ -334,29 +348,44 @@ class company {
                 $searchsql = "AND " . $DB->sql_like('c.name', ':search', false);
                 $companiesparams['search'] = '%' . $DB->sql_like_escape($search) . '%';
             }
-            $companies = $DB->get_recordset_sql("SELECT DISTINCT c.*,cu.lastused
-                                                 FROM {company} c
-                                                 JOIN {company_users} cu ON (c.id = cu.companyid)
-                                                 WHERE cu.userid = :userid
-                                                 AND cu.suspended = 0
-                                                 $searchsql
-                                                 $suspendedsql
-                                                 ORDER BY $sort",
-                                                 $companiesparams);
-        }
-        $companyselect = array();
-        foreach ($companies as $company) {
-            if (empty($company->suspended)) {
-                $companyselect[$company->id] = format_string($company->name);
+            // Show the hierarchy if required.
+            if (!empty($CFG->iomad_show_company_structure)) {
+                $companies = $DB->get_records_sql_menu("SELECT DISTINCT c.id, IF (c.suspended=0, c.name, concat(c.name, ' (S)')) AS name, cu.lastused
+                                                        FROM {company} c
+                                                        JOIN {company_users} cu ON (c.id = cu.companyid)
+                                                        WHERE cu.userid = :userid
+                                                        AND cu.suspended = 0
+                                                        AND c.parentid = 0
+                                                        $searchsql
+                                                        $suspendedsql
+                                                        ORDER BY $sort",
+                                                        $companiesparams);
             } else {
-                $companyselect[$company->id] = format_string($company->name . '(S)');
+                $companies = $DB->get_records_sql_menu("SELECT DISTINCT c.id, IF (c.suspended=0, c.name, concat(c.name, ' (S)')) AS name, cu.lastused
+                                                        FROM {company} c
+                                                        JOIN {company_users} cu ON (c.id = cu.companyid)
+                                                        WHERE cu.userid = :userid
+                                                        AND cu.suspended = 0
+                                                        AND c.parentid = 0
+                                                        $searchsql
+                                                        $suspendedsql
+                                                        ORDER BY $sort",
+                                                        $companiesparams);
             }
-            if ($showchildren) {
-                $allchildren = self::get_formatted_child_companies_select($company->id, $useprepend);
+        }
+
+        // Show the hierarchy if required.
+        if (!empty($CFG->iomad_show_company_structure)) {
+            $companyselect = array();
+            foreach ($companies as $id => $companyname) {
+                $companyselect[$id] = $companyname;
+                $allchildren = self::get_formatted_child_companies_select($id);
                 $companyselect = $companyselect + $allchildren;
             }
+            return $companyselect;
+        } else {
+            return $companies;
         }
-        return $companyselect;
     }
 
     private static function get_formatted_child_companies_select($companyid, $useprepend = true, &$companyarray = [], $prepend = "") {
@@ -808,6 +837,8 @@ class company {
 
         $errors = false;
         $gone = false;
+        require_once(__DIR__ . '/../../../course/format/lib.php');
+
         $transaction = $DB->start_delegated_transaction();
 
         if (!$course = $DB->get_record('course', array('id' => $courseid))) {
@@ -3554,7 +3585,17 @@ class company {
                                                            'userid' => $userid))) {
             return true;
         } else {
-            return false;
+            // is the user in a child company?
+            $company = new company($companyid);
+            $children = $company->get_child_companies_recursive();
+            if ($DB->get_records_sql("SELECT id FROM {company_users}
+                                      WHERE userid = :userid
+                                      and companyid IN (" . join(',', array_keys($children)) . ")",
+                                      ['userid' => $userid])) {
+                return true;
+            } else {
+                return false;
+            }
         }
         // Shouldn't get here.  Return a false in case.
         return false;
@@ -4417,6 +4458,53 @@ class company {
                 // Fire off the payload to the external site.
                 require_once($CFG->dirroot . '/blocks/iomad_commerce/locallib.php');
                 iomad_commerce::update_user($user, $company->id);
+            }
+        }
+
+        // Check if we are assigning department by profile field.
+        if (!empty($CFG->iomad_sync_department) &&
+            $CFG->iomad_sync_department == 2) {
+            // Check if there is a department with the name given.
+            $current = $DB->count_records('department', ['company' => $company->id, 'name' => $user->department]);
+            if ($current == 1) {
+                // Assign them to the department.
+                $department = $DB->get_record('department', ['company' => $company->id, 'name' => $user->department]);
+                if ($currentdepartments = $DB->get_records('company_users', ['companyid' => $company->id, 'userid' => $user->id])) {
+                    // We only do anything if they are in one department.
+                    if (count($currentdepartments) == 1) {
+                        foreach ($currentdepartments as $currentdepartment) {
+                            // Only move them if they are not a company manager.
+                            if ($currentdepartment->managertype != 1) {
+                                $DB->set_field('company_users', 'departmentid', $department->id, ['id' => $currentdepartment->id]);
+                            }
+                        }
+                    }
+                } else {
+                    // Assign them to this department as they aren't in any yet.
+                    self::assign_user_to_department($department->id, $user->id);
+                }
+            } else if ($current == 0) {
+                // Department doesn't exist yet. Create it!
+                $shortname = str_replace(' ', '-', $user->department);
+                $shortname = preg_replace('/[^A-Za-z0-9\-]/', '', $shortname);
+                $topdepartment = self::get_company_parentnode($company->id);
+                self::create_department(0, $company->id, $user->department, $shortname, $topdepartment->id);
+                // Get the new department.
+                $department = $DB->get_record('department', ['company' => $company->id, 'shortname' => $shortname]);
+                if ($currentdepartments = $DB->get_records('company_users', ['companyid' => $company->id, 'userid' => $user->id])) {
+                    // We only do anything if they are in one department.
+                    if (count($currentdepartments) == 1) {
+                        foreach ($currentdepartments as $currentdepartment) {
+                            // Only move them if they are not a company manager.
+                            if ($currentdepartment->managertype != 1) {
+                                $DB->set_field('company_users', 'departmentid', $department->id, ['id' => $currentdepartment->id]);
+                            }
+                        }
+                    }
+                } else {
+                    // Assign them to this department as they aren't in any yet.
+                    self::assign_user_to_department($department->id, $user->id);
+                }
             }
         }
 
