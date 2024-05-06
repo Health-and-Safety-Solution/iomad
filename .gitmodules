@@ -22,3 +22,12 @@
 [submodule "blocks/iomad_doc_widget"]
 	path = blocks/iomad_doc_widget
 	url = https://github.com/Health-and-Safety-Solution/iomad_doc_widget.git
+[submodule "blocks/iomad_ecommerce"]
+	path = blocks/iomad_ecommerce
+	url = https://github.com/Health-and-Safety-Solution/iomad_ecommerce.git
+[submodule "payment/gateway/po"]
+	path = payment/gateway/po
+	url = https://github.com/Health-and-Safety-Solution/paygw_po.git
+[submodule "payment/gateway/stripe"]
+	path = payment/gateway/stripe
+	url = https://github.com/Health-and-Safety-Solution/moodle-paygw_stripe.git
