@@ -31,3 +31,6 @@
 [submodule "payment/gateway/stripe"]
 	path = payment/gateway/stripe
 	url = https://github.com/Health-and-Safety-Solution/moodle-paygw_stripe.git
+[submodule "mod/customcert"]
+	path = mod/customcert
+	url = https://github.com/Health-and-Safety-Solution/moodle-mod_customcert.git

@@ -60,9 +60,9 @@ class processor {
         }
     }
 
-    public static function trigger_invoiceitem_onordercomplete($invoiceitemid, $invoice) {
+    public static function trigger_invoiceitem_onordercomplete($invoiceitemid, $eventname , $invoice) {
         global $DB;
-        if ($item = $DB->get_record('invoiceitem', array('id' => $invoiceitemid, 'processed' => 0), '*')) {
+        if ($item = $DB->get_record('invoiceitem', array('invoiceid' => $invoiceitemid, 'processed' => 0), '*')) {
             $processorname = $item->invoiceableitemtype;
             $function = $processorname . "_" . $eventname;
             self::$function($item, $invoice);
