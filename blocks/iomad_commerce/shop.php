@@ -36,7 +36,7 @@ $perpage      = optional_param('perpage', $CFG->iomad_max_list_courses, PARAM_IN
 $linktext = get_string('shop_title', 'block_iomad_commerce');
 // Set the url.
 $linkurl = new moodle_url('/blocks/iomad_commerce/shop.php');
-
+redirect($CFG->wwwroot."/blocks/iomad_ecommerce/products.php");
 require_login();
 
 $systemcontext = context_system::instance();
