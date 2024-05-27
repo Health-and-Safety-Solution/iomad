@@ -34,3 +34,12 @@
 [submodule "mod/customcert"]
 	path = mod/customcert
 	url = https://github.com/Health-and-Safety-Solution/moodle-mod_customcert.git
+[submodule "auth/userkey"]
+	path = auth/userkey
+	url = https://github.com/Health-and-Safety-Solution/moodle-auth_userkey.git
+[submodule "local/coursetocal"]
+	path = local/coursetocal
+	url = https://github.com/Health-and-Safety-Solution/coursetocal.git
+[submodule "local/reminders"]
+	path = local/reminders
+	url = https://github.com/Health-and-Safety-Solution/moodle-local_reminders.git

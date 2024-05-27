@@ -48,6 +48,8 @@ if (! $cm = get_coursemodule_from_id('trainingevent', $id)) {
     throw new moodle_exception('invalidcoursemodule');
 }
 
+redirect($CFG->wwwroot."/course/view.php?id=".$cm->course);
+
 if (! $course = $DB->get_record("course", array("id" => $cm->course))) {
     throw new moodle_exception('coursemisconf');
 }
