@@ -55,7 +55,7 @@ class company_license_expiring_task extends \core\task\scheduled_task {
 
         // Get all of the licenses which are going to expire in the next 30 days and have un-unsed slots.
         $licenses = $DB->get_records_sql("SELECT * FROM {companylicense}
-                                          WHERE used < allocated
+                                          WHERE used < allocation
                                           AND expirydate > :now
                                           AND expirydate < :warn",
                                           ['now' => $runtime,
@@ -87,7 +87,7 @@ class company_license_expiring_task extends \core\task\scheduled_task {
                     $license->expirydate =  date($CFG->iomad_date_format, $license->expirydate);
                     // Passed all checks, send the email.
                     mtrace("Sending license pool expiring email to $user->email");
-                    EmailTemplate::send('licensepoolexpiringq', array('user' => $user, 'license' => $license, 'company' => $company));
+                    EmailTemplate::send('licensepoolexpiring', array('user' => $user, 'license' => $license, 'company' => $company));
                 }
             }
         }

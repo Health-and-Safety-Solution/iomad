@@ -36,27 +36,20 @@ $invoiceid = required_param('id', PARAM_INTEGER);
 
 require_login();
 
-if(!is_siteadmin()) {
-    if($CFG->local_iomad_signup_company) {
-        $invoice = \block_iomad_commerce\helper::get_invoice($invoiceid);
-        if($invoice->companyid) {
-            if($invoice->companyid == $CFG->local_iomad_signup_company) {
-            echo $OUTPUT->header();
-            echo $OUTPUT->notification('Thank you for your order. Your order has been received and our team will process the order and get back to you.
-                ', 'notifysuccess');
-                echo $OUTPUT->footer();
-                exit;
-            }
-        }
-    }
-}
-
 $systemcontext = context_system::instance();
 
 // Set the companyid
 $companyid = iomad::get_my_companyid($systemcontext);
 $companycontext = \core\context\company::instance($companyid);
 $company = new company($companyid);
+
+if(iomad::has_capability('block/iomad_commerce:admin_view', $companycontext) == false) {
+    echo $OUTPUT->header();
+    echo $OUTPUT->notification('Thank you for your order. Your order has been received and our team will process the order and get back to you.
+        ', 'notifysuccess');
+        echo $OUTPUT->footer();
+        exit;
+}
 
 iomad::require_capability('block/iomad_commerce:admin_view', $companycontext);
 
