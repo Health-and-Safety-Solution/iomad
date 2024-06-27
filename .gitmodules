@@ -43,3 +43,6 @@
 [submodule "local/reminders"]
 	path = local/reminders
 	url = https://github.com/Health-and-Safety-Solution/moodle-local_reminders.git
+[submodule "local/iomad_xero"]
+	path = local/iomad_xero
+	url = https://github.com/Health-and-Safety-Solution/iomad_xero.git
