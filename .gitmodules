@@ -46,3 +46,6 @@
 [submodule "local/iomad_xero"]
 	path = local/iomad_xero
 	url = https://github.com/Health-and-Safety-Solution/iomad_xero.git
+[submodule "mod/checklist"]
+	path = mod/checklist
+	url = https://github.com/Health-and-Safety-Solution/moodle-checklist.git
