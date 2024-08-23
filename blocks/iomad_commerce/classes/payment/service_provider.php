@@ -66,6 +66,7 @@ class service_provider implements \core_payment\local\callback\service_provider 
     public static function get_success_url(string $paymentarea, int $instanceid): \moodle_url {
         global $CFG, $DB;
 
+	return new \moodle_url($CFG->wwwroot . '/blocks/iomad_commerce/edit_order_form.php?id='.$instanceid);
         // Send them back to the dashboard.
         return new \moodle_url($CFG->wwwroot . '/my');
     }

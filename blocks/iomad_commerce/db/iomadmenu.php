@@ -25,7 +25,7 @@
 
 function block_iomad_commerce_menu() {
 
-    return array(
+    /*return array(
         'ShopSettings_list' => array(
             'category' => 'ECommerceAdmin',
             'tab' => 6,
@@ -48,5 +48,6 @@ function block_iomad_commerce_menu() {
             'icon' => 'fa-truck',
             'iconsmall' => 'fa-eye'
         ),
-    );
+    );*/
+    return array();
 }
