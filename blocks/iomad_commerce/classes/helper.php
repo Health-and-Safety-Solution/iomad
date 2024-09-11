@@ -368,20 +368,34 @@ class helper {
         $multiplecurrency = false;
         $currentcurrency = '';
 
-        if ($basketitems = $DB->get_records_sql('SELECT ii.*, css.name
+        /*if ($basketitems = $DB->get_records_sql('SELECT ii.*, css.name
                                                 FROM {invoiceitem} ii
                                                     INNER JOIN {course_shopsettings} css ON ii.invoiceableitemid = css.id
                                                 WHERE ii.invoiceid = :invoiceid
                                                 ORDER BY ii.id
-                                               ', array('invoiceid' => $invoiceid))) {
+                                               ', array('invoiceid' => $invoiceid))) {*/
 
+	
+               if ($basketitems = $DB->get_records_sql('SELECT ii.*, css.name, csc.courseid, i.reference AS invoice_reference
+                                                FROM {invoiceitem} ii
+                                                    INNER JOIN {course_shopsettings} css ON ii.invoiceableitemid = css.id
+                                                    LEFT JOIN {invoice} i ON i.id = ii.invoiceid
+                                                    LEFT JOIN {course_shopsettings_courses} csc ON ii.invoiceableitemid = csc.itemid
+                                                WHERE ii.invoiceid = :invoiceid
+                                                ORDER BY ii.id
+                                               ', array('invoiceid' => $invoiceid))) {
             $table = new html_table();
             $table->head = array (get_string('course'),
                                   "",
                                   get_string('unitprice', 'block_iomad_commerce'),
                                   get_string('amount', 'block_iomad_commerce')
                                  );
-            if ($includeremove) {
+
+            if(basename($_SERVER['SCRIPT_NAME']) == 'edit_order_form.php') {
+            	$table->head[] = get_string('action');
+	    }
+
+	    if ($includeremove) {
                 $table->head[] = "";
             }
             if ($showprocessed) {
@@ -412,6 +426,68 @@ class helper {
                     $currentcurrency = $item->currency;
                 }
 
+		if(basename($_SERVER['SCRIPT_NAME']) == 'edit_order_form.php') {
+                $sqllicense = "SELECT cl.*, cu.courseid as courseid, cu.licenseid AS licenseid FROM {companylicense} cl LEFT JOIN {companylicense_courses} cu ON (cu.licenseid = cl.id) WHERE cl.reference = '".$item->invoice_reference."' AND cu.courseid = ".$item->courseid. " AND cu.licenseid != 0";
+                $licensedata = $DB->get_record_sql($sqllicense);
+
+                if(($licensedata->humanallocation <= $licensedata->used) && (!(empty($licensedata->licenseid)))){
+                    $companyid = \iomad::get_my_companyid(\context_system::instance());
+		    $licenseuserData = $DB->get_records_sql("SELECT userid, isusing FROM {companylicense_users} WHERE licenseid = ".$licensedata->licenseid);
+                    $Licenseusername = '';
+                    if($licenseuserData) {
+                        foreach($licenseuserData as $licenseUser) {
+                            $userData = get_complete_user_data('id', $licenseUser->userid);
+                            $Licenseusername .= $userData->username.', ';
+                        }
+                        $Licenseusername = rtrim($Licenseusername, ', ');
+                    }
+
+                    if($companyid) {
+                        $companycontext = \core\context\company::instance($companyid);
+                        if(iomad::has_capability('block/iomad_company_admin:allocate_licenses', $companycontext)) {
+                            $unallocatebutton = "<a class='btn btn-primary' target='_blank' title='".$Licenseusername."' style='margin-left: 0.5em' href='".
+                                new moodle_url('/blocks/iomad_company_admin/company_license_users_form.php', array('licenseid' => $licensedata->licenseid)) ."'>".get_string('unallocateCoursePlace', 'block_iomad_ecommerce')."</a>";
+                        } else {
+                            $unallocatebutton = "";
+                        }
+                    } else {
+                        if(iomad::has_capability('block/iomad_company_admin:allocate_licenses', $context)) {
+                            $unallocatebutton = "<a class='btn btn-primary' target='_blank' title='".$Licenseusername."' style='margin-left: 0.5em' href='".
+                                new moodle_url('/blocks/iomad_company_admin/company_license_users_form.php', array('licenseid' => $licensedata->licenseid)) ."'>".get_string('unallocateCoursePlace', 'block_iomad_ecommerce')."</a>";
+                        } else {
+                            $unallocatebutton = "";
+                        }
+                    }
+                }
+
+                if(($licensedata->humanallocation > $licensedata->used) && (!(empty($licensedata->licenseid)))){
+                    if($licensedata->expirydate > time()) {
+                        $companyid = \iomad::get_my_companyid(\context_system::instance());
+                    if($companyid) {
+                        $companycontext = \core\context\company::instance($companyid);
+                        if(iomad::has_capability('block/iomad_company_admin:allocate_licenses', $companycontext)) {
+                            $allocatebutton = "<a class='btn btn-primary' target='_blank' style='margin-left: 0.5em' href='".
+                                new moodle_url('/blocks/iomad_company_admin/company_license_users_form.php', array('licenseid' => $licensedata->licenseid)) ."'>".get_string('allocateCoursePlace', 'block_iomad_ecommerce')."</a>";
+                        } else {
+                            $allocatebutton = "";
+                        }
+                    } else {
+                        if(iomad::has_capability('block/iomad_company_admin:allocate_licenses', $context)) {
+                            $allocatebutton = "<a class='btn btn-primary' target='_blank' style='margin-left: 0.5em' href='".
+                                new moodle_url('/blocks/iomad_company_admin/company_license_users_form.php', array('licenseid' => $licensedata->licenseid)) ."'>".get_string('allocateCoursePlace', 'block_iomad_ecommerce')."</a>";
+                        } else {
+                            $allocatebutton = "";
+                        }
+                    }
+                    } else {
+                        $allocatebutton = '';
+                    }
+                } else {
+                    $allocatebutton = "<a class='btn btn-primary' style='margin-left: 0.5em' href='".
+                    new moodle_url('/blocks/iomad_commerce/edit_order_form.php?id='.$invoiceid)."'>Click to Process</a>";
+                }
+		}
+		//var_dump($item->license_startdate);exit;
                 $row = array(
                     ($links ? "<a href='" . new moodle_url($CFG->wwwroot . '/blocks/iomad_commerce/item.php', ['itemid' => $item->invoiceableitemid]) ."'>" .$item->name ."</a>" : $item->name),
                     get_string('type_quantity_' . ($item->license_allocation > 1 ? 'n' : '1') .
@@ -419,6 +495,9 @@ class helper {
                     $unitprice,
                     $item->currency . ' ' .number_format($rowtotal, 2)
                 );
+		if(basename($_SERVER['SCRIPT_NAME']) == 'edit_order_form.php') {
+			$row[] = $allocatebutton.' '.$unallocatebutton;
+		}
                 if ($includeremove) {
                     $row[] = "<a href='basket.php?remove=$item->id'><i class='icon fa fa-trash fa-fw ' title='" . get_string('remove') ."' role='img' aria-label='". get_string('remove') ."'></i></a>";
                 }
@@ -443,6 +522,9 @@ class helper {
                     '',
                     '<b>' . $currency . ' ' . number_format($total, 2) . '</b>'
                 );
+		if(basename($_SERVER['SCRIPT_NAME']) == 'edit_order_form.php') {
+			$totalrow[] = '';
+		}
             } else {
                 $totalrow = ['','','',''];
             }

@@ -152,7 +152,10 @@ if (!empty($licenseid) && !company::check_valid_company_license($companyid, $lic
 $select = new single_select($linkurl, 'licenseid', $licenselist, $licenseid);
 $select->label = get_string('licenseselect', 'block_iomad_company_admin');
 $select->formid = 'chooselicense';
+echo '<div style="display: flex; justify-content: space-between;">';
 echo html_writer::tag('div', $output->render($select), array('id' => 'iomad_license_selector'));
+echo  "<a href='../../blocks/iomad_company_admin/company_user_create_form.php' target='_blank'><button class='btn btn-primary'>Create New Delegate</button></a>";
+echo "</div>";
 $fwselectoutput = html_writer::tag('div', $output->render($select), array('id' => 'iomad_license_selector'));
 
 // Do we have any licenses?

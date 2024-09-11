@@ -121,12 +121,7 @@ if ($mform->is_cancelled()) {
 
     echo $OUTPUT->header();
 
-if ($invoice->paymentid) {
-	echo "<a href='../../blocks/iomad_company_admin/company_user_create_form.php' target='_blank'><button class='btn btn-primary'>Create New Delegate</button></a>";
-	echo "         ";
-	echo "<a href='../../blocks/iomad_company_admin/company_license_list.php' target='_blank'><button class='btn btn-primary'>Allocate Course Place</button></a>";
-	echo "<br/><br/>";
-} else {
+if (!$invoice->paymentid) {
 	echo "<a href='../../blocks/iomad_ecommerce/checkout.php?invoiceid=".$invoiceid."' target='_blank'><button class='btn btn-primary'>Make Payment</button></a>";
 }
 
