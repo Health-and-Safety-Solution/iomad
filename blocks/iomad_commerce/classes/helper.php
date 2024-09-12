@@ -425,67 +425,68 @@ class helper {
                 } else {
                     $currentcurrency = $item->currency;
                 }
-
 		if(basename($_SERVER['SCRIPT_NAME']) == 'edit_order_form.php') {
-                $sqllicense = "SELECT cl.*, cu.courseid as courseid, cu.licenseid AS licenseid FROM {companylicense} cl LEFT JOIN {companylicense_courses} cu ON (cu.licenseid = cl.id) WHERE cl.reference = '".$item->invoice_reference."' AND cu.courseid = ".$item->courseid. " AND cu.licenseid != 0";
-                $licensedata = $DB->get_record_sql($sqllicense);
+			$allocatebutton = "";
+			$unallocatebutton = "";
+                	$sqllicense = "SELECT cl.*, cu.courseid as courseid, cu.licenseid AS licenseid FROM {companylicense} cl LEFT JOIN {companylicense_courses} cu ON (cu.licenseid = cl.id) WHERE cl.reference = '".$item->invoice_reference."' AND cu.courseid = ".$item->courseid. " AND cu.licenseid != 0";
+                	$licensedata = $DB->get_record_sql($sqllicense);
+                	if(($licensedata->humanallocation <= $licensedata->used) && (!(empty($licensedata->licenseid)))){
+                    		$companyid = \iomad::get_my_companyid(\context_system::instance());
+		    		$licenseuserData = $DB->get_records_sql("SELECT userid, isusing FROM {companylicense_users} WHERE licenseid = ".$licensedata->licenseid);
+                    		$Licenseusername = '';
+                    		if($licenseuserData) {
+                        		foreach($licenseuserData as $licenseUser) {
+                            			$userData = get_complete_user_data('id', $licenseUser->userid);
+                            			$Licenseusername .= $userData->username.', ';
+                        		}
+                        		$Licenseusername = rtrim($Licenseusername, ', ');
+                    		}
 
-                if(($licensedata->humanallocation <= $licensedata->used) && (!(empty($licensedata->licenseid)))){
-                    $companyid = \iomad::get_my_companyid(\context_system::instance());
-		    $licenseuserData = $DB->get_records_sql("SELECT userid, isusing FROM {companylicense_users} WHERE licenseid = ".$licensedata->licenseid);
-                    $Licenseusername = '';
-                    if($licenseuserData) {
-                        foreach($licenseuserData as $licenseUser) {
-                            $userData = get_complete_user_data('id', $licenseUser->userid);
-                            $Licenseusername .= $userData->username.', ';
-                        }
-                        $Licenseusername = rtrim($Licenseusername, ', ');
-                    }
+                    		if($companyid) {
+                        		$companycontext = \core\context\company::instance($companyid);
+                        		if(iomad::has_capability('block/iomad_company_admin:allocate_licenses', $companycontext)) {
+                            			$unallocatebutton = "<a class='btn btn-primary' target='_blank' title='".$Licenseusername."' style='margin-left: 0.5em' href='".
+                                			new moodle_url('/blocks/iomad_company_admin/company_license_users_form.php', array('licenseid' => $licensedata->licenseid)) ."'>".get_string('unallocateCoursePlace', 'block_iomad_ecommerce')."</a>";
+                        		} else {
+                            			$unallocatebutton = "";
+                        		}
+                    		} else {
+                        		if(iomad::has_capability('block/iomad_company_admin:allocate_licenses', $context)) {
+                            			$unallocatebutton = "<a class='btn btn-primary' target='_blank' title='".$Licenseusername."' style='margin-left: 0.5em' href='".
+                                			new moodle_url('/blocks/iomad_company_admin/company_license_users_form.php', array('licenseid' => $licensedata->licenseid)) ."'>".get_string('unallocateCoursePlace', 'block_iomad_ecommerce')."</a>";
+                        		} else {
+                            			$unallocatebutton = "";
+                        		}
+                    		}
+			}
 
-                    if($companyid) {
-                        $companycontext = \core\context\company::instance($companyid);
-                        if(iomad::has_capability('block/iomad_company_admin:allocate_licenses', $companycontext)) {
-                            $unallocatebutton = "<a class='btn btn-primary' target='_blank' title='".$Licenseusername."' style='margin-left: 0.5em' href='".
-                                new moodle_url('/blocks/iomad_company_admin/company_license_users_form.php', array('licenseid' => $licensedata->licenseid)) ."'>".get_string('unallocateCoursePlace', 'block_iomad_ecommerce')."</a>";
-                        } else {
-                            $unallocatebutton = "";
-                        }
-                    } else {
-                        if(iomad::has_capability('block/iomad_company_admin:allocate_licenses', $context)) {
-                            $unallocatebutton = "<a class='btn btn-primary' target='_blank' title='".$Licenseusername."' style='margin-left: 0.5em' href='".
-                                new moodle_url('/blocks/iomad_company_admin/company_license_users_form.php', array('licenseid' => $licensedata->licenseid)) ."'>".get_string('unallocateCoursePlace', 'block_iomad_ecommerce')."</a>";
-                        } else {
-                            $unallocatebutton = "";
-                        }
-                    }
-                }
-
-                if(($licensedata->humanallocation > $licensedata->used) && (!(empty($licensedata->licenseid)))){
-                    if($licensedata->expirydate > time()) {
-                        $companyid = \iomad::get_my_companyid(\context_system::instance());
-                    if($companyid) {
-                        $companycontext = \core\context\company::instance($companyid);
-                        if(iomad::has_capability('block/iomad_company_admin:allocate_licenses', $companycontext)) {
-                            $allocatebutton = "<a class='btn btn-primary' target='_blank' style='margin-left: 0.5em' href='".
-                                new moodle_url('/blocks/iomad_company_admin/company_license_users_form.php', array('licenseid' => $licensedata->licenseid)) ."'>".get_string('allocateCoursePlace', 'block_iomad_ecommerce')."</a>";
-                        } else {
-                            $allocatebutton = "";
-                        }
-                    } else {
-                        if(iomad::has_capability('block/iomad_company_admin:allocate_licenses', $context)) {
-                            $allocatebutton = "<a class='btn btn-primary' target='_blank' style='margin-left: 0.5em' href='".
-                                new moodle_url('/blocks/iomad_company_admin/company_license_users_form.php', array('licenseid' => $licensedata->licenseid)) ."'>".get_string('allocateCoursePlace', 'block_iomad_ecommerce')."</a>";
-                        } else {
-                            $allocatebutton = "";
-                        }
-                    }
-                    } else {
-                        $allocatebutton = '';
-                    }
-                } else {
-                    $allocatebutton = "<a class='btn btn-primary' style='margin-left: 0.5em' href='".
-                    new moodle_url('/blocks/iomad_commerce/edit_order_form.php?id='.$invoiceid)."'>Click to Process</a>";
-                }
+                	if(($licensedata->humanallocation > $licensedata->used) && (!(empty($licensedata->licenseid)))){
+                    		if($licensedata->expirydate > time()) {
+                        		$companyid = \iomad::get_my_companyid(\context_system::instance());
+	                    		if($companyid) {
+        	                		$companycontext = \core\context\company::instance($companyid);
+                	        		if(iomad::has_capability('block/iomad_company_admin:allocate_licenses', $companycontext)) {
+                        	    			$allocatebutton = "<a class='btn btn-primary' target='_blank' style='margin-left: 0.5em' href='".
+                                				new moodle_url('/blocks/iomad_company_admin/company_license_users_form.php', array('licenseid' => $licensedata->licenseid)) ."'>".get_string('allocateCoursePlace', 'block_iomad_ecommerce')."</a>";
+                        			} else {
+                            				$allocatebutton = "";
+	                        		}
+        	            		} else {
+                	        		if(iomad::has_capability('block/iomad_company_admin:allocate_licenses', $context)) {
+                        	    			$allocatebutton = "<a class='btn btn-primary' target='_blank' style='margin-left: 0.5em' href='".
+                                				new moodle_url('/blocks/iomad_company_admin/company_license_users_form.php', array('licenseid' => $licensedata->licenseid)) ."'>".get_string('allocateCoursePlace', 'block_iomad_ecommerce')."</a>";
+                        			} else {
+                            				$allocatebutton = "";
+	                        		}
+        	            		}
+                	    	} else {
+                        		$allocatebutton = '';
+                    		}
+	                }
+			if (empty($licensedata->licenseid)) {
+        	        	$allocatebutton = "<a class='btn btn-primary' style='margin-left: 0.5em' href='".
+                	    	new moodle_url('/blocks/iomad_commerce/edit_order_form.php?id='.$invoiceid)."'>Click to Process</a>";
+                	}
 		}
 		//var_dump($item->license_startdate);exit;
                 $row = array(

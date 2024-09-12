@@ -28,6 +28,7 @@
 require_once(dirname(__FILE__) . '/../../config.php');
 require_once(dirname(__FILE__) . '/../iomad_company_admin/lib.php');
 require_once(dirname(__FILE__) . '/../../course/lib.php');
+require_once($CFG->dirroot.'/blocks/iomad_ecommerce/lib.php');
 
 \block_iomad_commerce\helper::require_commerce_enabled();
 
@@ -69,7 +70,7 @@ if(iomad::has_capability('block/iomad_commerce:admin_view', $companycontext) == 
 }
 
 iomad::require_capability('block/iomad_commerce:admin_view', $companycontext);
-
+licenseUpdate();
 $urlparams = array();
 if ($returnurl) {
     $urlparams['returnurl'] = $returnurl;
