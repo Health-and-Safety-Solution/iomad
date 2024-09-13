@@ -80,7 +80,8 @@ if (!$event = $DB->get_record('trainingevent', array('id' => $cm->instance))) {
         $PAGE->set_context(context_module::instance($id));
 
         // Get the associated department id.
-        $company = new company($location->companyid);
+        $companyid = iomad::get_my_companyid($systemcontext);
+        $company = new company($companyid);
         $parentlevel = company::get_company_parentnode($company->id);
         $companydepartment = $parentlevel->id;
         if (!empty($event->coursecapacity)) {
@@ -1080,12 +1081,6 @@ if (!$event = $DB->get_record('trainingevent', array('id' => $cm->instance))) {
         if (!empty($publish)) {
 
             echo $OUTPUT->header();
-
-            // Check the userid is valid.
-            if (!company::check_valid_user($company->id, $USER->id, $departmentid)) {
-                throw new moodle_exception('invaliduserdepartment', 'block_iomad_company_management');
-            }
-
             echo "<h2>".get_string('sendingemails', 'trainingevent')."</h2>";
             $course = $DB->get_record('course', array('id' => $event->course));
             $course->url = new moodle_url('course/view.php', array('id' => $course->id));
@@ -1201,12 +1196,6 @@ if (!$event = $DB->get_record('trainingevent', array('id' => $cm->instance))) {
 
         if (!$download) {
             echo $OUTPUT->header();
-
-            // Check the userid is valid.
-            if (!company::check_valid_user($company->id, $USER->id, $departmentid)) {
-                throw new moodle_exception('invaliduserdepartment', 'block_iomad_company_management');
-            }
-
             echo $eventtable;
 
             // Output the buttons.
@@ -1297,7 +1286,8 @@ if (!$event = $DB->get_record('trainingevent', array('id' => $cm->instance))) {
         // Output the attendees.
         if (!empty($view) && has_capability('mod/trainingevent:viewattendees', $context)) {
             // Get the associated department id.
-            $company = new company($location->companyid);
+            $companyid = iomad::get_my_companyid($systemcontext);
+            $company = new company($companyid);
             $parentlevel = company::get_company_parentnode($company->id);
             $companydepartment = $parentlevel->id;
 
@@ -1369,12 +1359,21 @@ if (!$event = $DB->get_record('trainingevent', array('id' => $cm->instance))) {
                         'department',
                         'email'];
 
-            $selectsql = "DISTINCT u.*, " . $location->companyid . " AS companyid";
+            $selectsql = "DISTINCT u.*, " . $event->course . " AS courseid";
             $fromsql = " {user} u
                          JOIN {trainingevent_users} teu ON (u.id = teu.userid)";
-            $wheresql = "teu.trainingeventid = :event
-                         AND u.id IN (".$allowedlist.")
-                         AND teu.waitlisted = :waitlisted"; 
+                         
+            $coursecontext = context_course::instance($event->course);
+                         
+            if(has_capability('mod/trainingevent:viewallattendees', $coursecontext)) {
+                $wheresql = "teu.trainingeventid = :event
+                            AND teu.waitlisted = :waitlisted"; 
+            } else {
+                $wheresql = "teu.trainingeventid = :event
+                            AND u.id IN (".$allowedlist.")
+                            AND teu.waitlisted = :waitlisted"; 
+            }
+            
             $sqlparams = ['waitlisted' => $waitingoption,
                           'event' => $event->id];
 
