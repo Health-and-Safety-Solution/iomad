@@ -49,3 +49,6 @@
 [submodule "mod/checklist"]
 	path = mod/checklist
 	url = https://github.com/Health-and-Safety-Solution/moodle-checklist.git
+[submodule "report/customsql"]
+	path = report/customsql
+	url = https://github.com/Health-and-Safety-Solution/moodle-report_customsql.git
