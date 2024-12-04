@@ -125,7 +125,7 @@ class iomad_courses_table extends table_sql {
         }
 
         if (!empty($USER->editing) &&
-        iomad::has_capability('block/iomad_company_admin:managecourses', $companycontext)) {
+        iomad::has_capability('block/iomad_company_admin:manageallcourses', $companycontext)) {
 
             $editable = new \block_iomad_company_admin\output\courses_license_editable($company,
                                                           $companycontext,
@@ -198,7 +198,7 @@ class iomad_courses_table extends table_sql {
                                     '2' => get_string('closed', 'block_iomad_company_admin'));
 
         if (!empty($USER->editing) &&
-        iomad::has_capability('block/iomad_company_admin:managecourses', $companycontext)) {
+        iomad::has_capability('block/iomad_company_admin:manageallcourses', $companycontext)) {
 
             $editable = new \block_iomad_company_admin\output\courses_shared_editable($company,
                                                           $companycontext,
@@ -224,10 +224,25 @@ class iomad_courses_table extends table_sql {
      * @return string HTML content to go inside the td.
      */
     public function col_validlength($row) {
-        global $USER, $companycontext, $company, $OUTPUT;
+        global $DB, $USER, $companycontext, $company, $OUTPUT;
+
+        // Is this a course the company manages themselves?
+        $companycreatedcourse = false;
+        // If it's not a license course and it's in the company_created_courses table - then we can do more things with it.
+        if (($row->licensed == 0 || $row->licensed = 3) &&
+            $DB->get_record('company_created_courses', ['companyid' => $company->id, 'courseid' => $row->courseid])) {
+            $companycreatedcourse = true;
+        }
+
+        // Is this a course the company could fully manage?
+        $canbemanaged = false;
+        if (($row->licensed == 0 || $row->licensed ==3) && $row->shared == 0) {
+            $canbemanaged = true;
+        }
 
         if (!empty($USER->editing) &&
-            iomad::has_capability('block/iomad_company_admin:managecourses', $companycontext)) {
+        (( $canbemanaged || $companycreatedcourse) ||
+            iomad::has_capability('block/iomad_company_admin:manageallcourses', $companycontext))) {
             $editable = new \block_iomad_company_admin\output\courses_validlength_editable($company,
                                                           $companycontext,
                                                           $row,
@@ -251,11 +266,25 @@ class iomad_courses_table extends table_sql {
      * @return string HTML content to go inside the td.
      */
     public function col_expireafter($row) {
-        global $USER, $companycontext, $company, $OUTPUT;
+        global $DB, $USER, $companycontext, $company, $OUTPUT;
+
+        // Is this a course the company manages themselves?
+        $companycreatedcourse = false;
+        // If it's not a license course and it's in the company_created_courses table - then we can do more things with it.
+        if (($row->licensed == 0 || $row->licensed = 3) &&
+            $DB->get_record('company_created_courses', ['companyid' => $company->id, 'courseid' => $row->courseid])) {
+            $companycreatedcourse = true;
+        }
+
+        // Is this a course the company could fully manage?
+        $canbemanaged = false;
+        if (($row->licensed == 0 || $row->licensed ==3) && $row->shared == 0) {
+            $canbemanaged = true;
+        }
 
         if (!empty($USER->editing) &&
-            iomad::has_capability('block/iomad_company_admin:managecourses', $companycontext)) {
-
+        (( $canbemanaged || $companycreatedcourse) ||
+            iomad::has_capability('block/iomad_company_admin:manageallcourses', $companycontext))) {
             $editable = new \block_iomad_company_admin\output\enrolment_expireafter_editable($company,
                                                           $companycontext,
                                                           $row,
@@ -279,11 +308,25 @@ class iomad_courses_table extends table_sql {
      * @return string HTML content to go inside the td.
      */
     public function col_warnexpire($row) {
-        global $USER, $companycontext, $company, $OUTPUT;
+        global $DB, $USER, $companycontext, $company, $OUTPUT;
+
+        // Is this a course the company manages themselves?
+        $companycreatedcourse = false;
+        // If it's not a license course and it's in the company_created_courses table - then we can do more things with it.
+        if (($row->licensed == 0 || $row->licensed = 3) &&
+            $DB->get_record('company_created_courses', ['companyid' => $company->id, 'courseid' => $row->courseid])) {
+            $companycreatedcourse = true;
+        }
+
+        // Is this a course the company could fully manage?
+        $canbemanaged = false;
+        if (($row->licensed == 0 || $row->licensed ==3) && $row->shared == 0) {
+            $canbemanaged = true;
+        }
 
         if (!empty($USER->editing) &&
-            iomad::has_capability('block/iomad_company_admin:managecourses', $companycontext)) {
-
+        (( $canbemanaged || $companycreatedcourse) ||
+            iomad::has_capability('block/iomad_company_admin:manageallcourses', $companycontext))) {
             $editable = new \block_iomad_company_admin\output\courses_warnexpire_editable($company,
                                                           $companycontext,
                                                           $row,
@@ -308,11 +351,25 @@ class iomad_courses_table extends table_sql {
      * @return string HTML content to go inside the td.
      */
     public function col_warnnotstarted($row) {
-        global $USER, $companycontext, $company, $OUTPUT;
+        global $DB, $USER, $companycontext, $company, $OUTPUT;
+
+        // Is this a course the company manages themselves?
+        $companycreatedcourse = false;
+        // If it's not a license course and it's in the company_created_courses table - then we can do more things with it.
+        if (($row->licensed == 0 || $row->licensed = 3) &&
+            $DB->get_record('company_created_courses', ['companyid' => $company->id, 'courseid' => $row->courseid])) {
+            $companycreatedcourse = true;
+        }
+
+        // Is this a course the company could fully manage?
+        $canbemanaged = false;
+        if (($row->licensed == 0 || $row->licensed ==3) && $row->shared == 0) {
+            $canbemanaged = true;
+        }
 
         if (!empty($USER->editing) &&
-            iomad::has_capability('block/iomad_company_admin:managecourses', $companycontext)) {
-
+        (( $canbemanaged || $companycreatedcourse) ||
+            iomad::has_capability('block/iomad_company_admin:manageallcourses', $companycontext))) {
             $editable = new \block_iomad_company_admin\output\courses_warnnotstarted_editable($company,
                                                           $companycontext,
                                                           $row,
@@ -336,11 +393,25 @@ class iomad_courses_table extends table_sql {
      * @return string HTML content to go inside the td.
      */
     public function col_warncompletion($row) {
-        global $USER, $companycontext, $company, $OUTPUT;
+        global $DB, $USER, $companycontext, $company, $OUTPUT;
+
+        // Is this a course the company manages themselves?
+        $companycreatedcourse = false;
+        // If it's not a license course and it's in the company_created_courses table - then we can do more things with it.
+        if (($row->licensed == 0 || $row->licensed = 3) &&
+            $DB->get_record('company_created_courses', ['companyid' => $company->id, 'courseid' => $row->courseid])) {
+            $companycreatedcourse = true;
+        }
+
+        // Is this a course the company could fully manage?
+        $canbemanaged = false;
+        if (($row->licensed == 0 || $row->licensed ==3) && $row->shared == 0) {
+            $canbemanaged = true;
+        }
 
         if (!empty($USER->editing) &&
-            iomad::has_capability('block/iomad_company_admin:managecourses', $companycontext)) {
-
+        (( $canbemanaged || $companycreatedcourse) ||
+            iomad::has_capability('block/iomad_company_admin:manageallcourses', $companycontext))) {
             $editable = new \block_iomad_company_admin\output\courses_warncompletion_editable($company,
                                                           $companycontext,
                                                           $row,
@@ -364,11 +435,25 @@ class iomad_courses_table extends table_sql {
      * @return string HTML content to go inside the td.
      */
     public function col_notifyperiod($row) {
-        global $USER, $companycontext, $company, $OUTPUT;
+        global $DB, $USER, $companycontext, $company, $OUTPUT;
+
+        // Is this a course the company manages themselves?
+        $companycreatedcourse = false;
+        // If it's not a license course and it's in the company_created_courses table - then we can do more things with it.
+        if (($row->licensed == 0 || $row->licensed = 3) &&
+            $DB->get_record('company_created_courses', ['companyid' => $company->id, 'courseid' => $row->courseid])) {
+            $companycreatedcourse = true;
+        }
+
+        // Is this a course the company could fully manage?
+        $canbemanaged = false;
+        if (($row->licensed == 0 || $row->licensed ==3) && $row->shared == 0) {
+            $canbemanaged = true;
+        }
 
         if (!empty($USER->editing) &&
-            iomad::has_capability('block/iomad_company_admin:managecourses', $companycontext)) {
-
+        (( $canbemanaged || $companycreatedcourse) ||
+            iomad::has_capability('block/iomad_company_admin:manageallcourses', $companycontext))) {
             $editable = new \block_iomad_company_admin\output\courses_notifyperiod_editable($company,
                                                           $companycontext,
                                                           $row,
@@ -392,10 +477,25 @@ class iomad_courses_table extends table_sql {
      * @return string HTML content to go inside the td.
      */
     public function col_hasgrade($row) {
-        global $USER, $companycontext, $company, $OUTPUT;
+        global $DB, $USER, $companycontext, $company, $OUTPUT;
+
+        // Is this a course the company manages themselves?
+        $companycreatedcourse = false;
+        // If it's not a license course and it's in the company_created_courses table - then we can do more things with it.
+        if (($row->licensed == 0 || $row->licensed = 3) &&
+            $DB->get_record('company_created_courses', ['companyid' => $company->id, 'courseid' => $row->courseid])) {
+            $companycreatedcourse = true;
+        }
+
+        // Is this a course the company could fully manage?
+        $canbemanaged = false;
+        if (($row->licensed == 0 || $row->licensed ==3) && $row->shared == 0) {
+            $canbemanaged = true;
+        }
 
         if (!empty($USER->editing) &&
-            iomad::has_capability('block/iomad_company_admin:managecourses', $companycontext)) {
+        (( $canbemanaged || $companycreatedcourse) ||
+            iomad::has_capability('block/iomad_company_admin:manageallcourses', $companycontext))) {
             $editable = new \block_iomad_company_admin\output\courses_hasgrade_editable($company,
                                                           $companycontext,
                                                           $row,
@@ -431,15 +531,12 @@ class iomad_courses_table extends table_sql {
     public function col_coursevisibility($row) {
         global $output;
         
-        if(empty($USER->editing)) {
-        
-            if($row->visible == 0) {        
-                $visiblereturn = "<span class=\"dimmed_text\"><i class='icon fa fa-eye-slash fa-fw ' title='" . get_string('hidden', 'badges') . "' role='img' aria-label='" . get_string('hidden', 'badges') . "'></i></span>";
-            } elseif($row->visible == 1) {
-        	       $visiblereturn = "<i class='icon fa fa-eye fa-fw ' title='" . get_string('visible', 'badges') . "' role='img' aria-label='" . get_string('visible', 'badges') . "'></i>";
-            }   
-            
+        if ($row->visible == 0) {        
+            $visiblereturn = "<span class=\"dimmed_text\"><i class='icon fa fa-eye-slash fa-fw ' title='" . get_string('hidden', 'badges') . "' role='img' aria-label='" . get_string('hidden', 'badges') . "'></i></span>";
+        } elseif($row->visible == 1) {
+            $visiblereturn = "<i class='icon fa fa-eye fa-fw ' title='" . get_string('visible', 'badges') . "' role='img' aria-label='" . get_string('visible', 'badges') . "'></i>";
         }   
+            
         
         return $visiblereturn;
 
@@ -456,64 +553,112 @@ class iomad_courses_table extends table_sql {
         $actionsoutput = "";
 
         if (!empty($USER->editing)) {
-            if ($row->shared == 0 && 
-                (iomad::has_capability('block/iomad_company_admin:deletecourses', $companycontext) ||
-                iomad::has_capability('block/iomad_company_admin:deletecourses', $companycontext))) {
-                $linkurl = "/blocks/iomad_company_admin/iomad_courses_form.php";
-                $linkparams = $params;
-                if (!empty($params['coursesearchtext'])) {
-                    $linkparams['coursesearch'] = $params['coursesearchtext'];
-                }
-                $linkparams['deleteid'] = $row->courseid;
-                $linkparams['sesskey'] = sesskey();
-                $deleteurl = new moodle_url($linkurl, $linkparams);
-                $actionsoutput = html_writer::start_tag('div');
-                $actionsoutput .= "<a href='$deleteurl'><i class='icon fa fa-trash fa-fw ' title='" . get_string('delete') . "' role='img' aria-label='" . get_string('delete') . "'></i></a>";
-    
-            } else if (iomad::has_capability('block/iomad_company_admin:deleteallcourses', $companycontext)) {
-                $linkurl = "/blocks/iomad_company_admin/iomad_courses_form.php";
-                $linkparams = $params;
-                if (!empty($params['coursesearchtext'])) {
-                    $linkparams['coursesearch'] = $params['coursesearchtext'];
-                }
-                $linkparams['deleteid'] = $row->courseid;
-                $linkparams['sesskey'] = sesskey();
-                $deleteurl = new moodle_url($linkurl, $linkparams);
-                $actionsoutput = html_writer::start_tag('div');
-                $actionsoutput .= "<a href='$deleteurl'><i class='icon fa fa-trash fa-fw ' title='" . get_string('delete') . "' role='img' aria-label='" . get_string('delete') . "'></i></a>";
+            // Is this a course the company manages themselves?
+            $companycreatedcourse = false;
+            // If it's not a license course and it's in the company_created_courses table - then we can do more things with it.
+            if (($row->licensed == 0 || $row->licensed = 3) &&
+                $DB->get_record('company_created_courses', ['companyid' => $company->id, 'courseid' => $row->courseid])) {
+                $companycreatedcourse = true;
+            }
+            // Is this a course the company could fully manage?
+            $canbemanaged = false;
+            if (($row->licensed == 0 || $row->licensed ==3) && $row->shared == 0) {
+                $canbemanaged = true;
             }
 
+            $actionsoutput .= html_writer::start_tag('div');
             // Handle course visibility action
             if (iomad::has_capability('block/iomad_company_admin:hideshowallcourses', $companycontext) || 
             (iomad::has_capability('block/iomad_company_admin:hideshowcourses', $companycontext) && 
-            $DB->get_record('company_created_courses', ['companyid' => $company->id, 'courseid' => $row->courseid]))) {
+            $companycreatedcourse)) {
                 $linkurl = "/blocks/iomad_company_admin/iomad_courses_form.php";            
                 $linkparams = $params;
                 if (!empty($params['coursesearchtext'])) {
                     $linkparams['coursesearch'] = $params['coursesearchtext'];
                 }             
                 $linkparams['sesskey'] = sesskey();
-                
+
                 if($row->visible == 1) {
-                	  $linkparams['hideid'] = $row->courseid;
-                	  $hideurl = new moodle_url($linkurl, $linkparams);
+                    $linkparams['hideid'] = $row->courseid;
+                    $hideurl = new moodle_url($linkurl, $linkparams);
                     $actionsoutput .= "<a href='$hideurl'><i class='icon fa fa-eye fa-fw ' title='" . get_string('hide') . "' role='img' aria-label='" . get_string('hide') . "'></i></a>";
-                    $actionsoutput .= html_writer::end_tag('div');
                     
                 } else if($row->visible == 0) {
-                	  $linkparams['showid'] = $row->courseid;
-                	  $showurl = new moodle_url($linkurl, $linkparams);
-                 	  $actionsoutput .= "<a href='$showurl'><i class='icon fa fa-eye-slash fa-fw ' title='" . get_string('show') . "' role='img' aria-label='" . get_string('hide') . "'></i></a>";
-                    $actionsoutput .= html_writer::end_tag('div');
-            }
-            
-	     }
+                    $linkparams['showid'] = $row->courseid;
+                    $showurl = new moodle_url($linkurl, $linkparams);
+                    $actionsoutput .= "<a href='$showurl'><i class='icon fa fa-eye-slash fa-fw ' title='" . get_string('show') . "' role='img' aria-label='" . get_string('hide') . "'></i></a>";
+                }
 
-        $actionsoutput .= html_writer::end_tag('div');
+                // Handle course clone action
+                if ($companycreatedcourse &&
+                    iomad::has_capability('block/iomad_company_admin:createcourse', $companycontext)) {
+                    $linkurl = "/blocks/iomad_company_admin/iomad_courses_form.php";
+                    $linkparams = $params;
+                    if (!empty($params['coursesearchtext'])) {
+                        $linkparams['coursesearch'] = $params['coursesearchtext'];
+                    }
+                    $linkparams['cloneid'] = $row->courseid;
+                    $linkparams['sesskey'] = sesskey();
+                    $cloneurl = new moodle_url($linkurl, $linkparams);
+                    $actionsoutput .= "<a href='$cloneurl'><i class='icon fa fa-copy fa-fw ' title='" .
+                                       get_string('copycoursetitle', 'backup', $row->coursename) .
+                                       "' role='img' aria-label='" .
+                                       get_string('copycoursetitle', 'backup', $row->coursename) . "'></i></a>";
+                }
 
-	}
+                // Handle course delete action.
+                if ($row->shared == 0 && 
+                    (iomad::has_capability('block/iomad_company_admin:deletecourses', $companycontext) ||
+                    iomad::has_capability('block/iomad_company_admin:deletecourses', $companycontext))) {
+                    $linkurl = "/blocks/iomad_company_admin/iomad_courses_form.php";
+                    $linkparams = $params;
+                    if (!empty($params['coursesearchtext'])) {
+                        $linkparams['coursesearch'] = $params['coursesearchtext'];
+                    }
+                    $linkparams['deleteid'] = $row->courseid;
+                    $linkparams['sesskey'] = sesskey();
+                    $deleteurl = new moodle_url($linkurl, $linkparams);
+                    $actionsoutput .= "<a href='$deleteurl'><i class='icon fa fa-trash fa-fw ' title='" . get_string('delete') . "' role='img' aria-label='" . get_string('delete') . "'></i></a>";
+
+                } else if (iomad::has_capability('block/iomad_company_admin:deleteallcourses', $companycontext)) {
+                    $linkurl = "/blocks/iomad_company_admin/iomad_courses_form.php";
+                    $linkparams = $params;
+                    if (!empty($params['coursesearchtext'])) {
+                        $linkparams['coursesearch'] = $params['coursesearchtext'];
+                    }
+                    $linkparams['deleteid'] = $row->courseid;
+                    $linkparams['sesskey'] = sesskey();
+                    $deleteurl = new moodle_url($linkurl, $linkparams);
+                    $actionsoutput .= "<a href='$deleteurl'><i class='icon fa fa-trash fa-fw ' title='" . get_string('delete') . "' role='img' aria-label='" . get_string('delete') . "'></i></a>";
+                }
+
+                // Handle course delegation action - give to company or remove.
+                if (($companycreatedcourse || $canbemanaged) && 
+                    iomad::has_capability('block/iomad_company_admin:delegatecourse', $companycontext)) {
+                    $linkurl = "/blocks/iomad_company_admin/iomad_courses_form.php";
+                    $linkparams = $params;
+                    if (!empty($params['coursesearchtext'])) {
+                        $linkparams['coursesearch'] = $params['coursesearchtext'];
+                    }
+                    $linkparams['delegateid'] = $row->courseid;
+                    $linkparams['sesskey'] = sesskey();
+                    if ($companycreatedcourse) {
+                        $linkparams['action'] = 'remove';
+                        $faicon = "fas fa-circle";
+                        $tooltip = get_string('takecontrol', 'block_iomad_company_admin', $row->coursename);
+                    } else if ($canbemanaged) {
+                        $linkparams['action'] = 'add';
+                        $faicon = "far fa-circle";
+                        $tooltip = get_string('givecontrol', 'block_iomad_company_admin', $row->coursename);
+                    }
+                    $manageurl = new moodle_url($linkurl, $linkparams);
+                    $actionsoutput .= "<a href='$manageurl'><i class='icon $faicon fa-fw ' title='" . $tooltip . "' role='img' aria-label='" . $tooltip . "'></i></a>";
+                }
+
+                $actionsoutput .= html_writer::end_tag('div');
+        	}
+        }
 
         return $actionsoutput;
-
     }
 }

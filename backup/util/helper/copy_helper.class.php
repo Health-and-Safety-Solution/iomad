@@ -62,6 +62,11 @@ final class copy_helper {
             }
         }
 
+        // IOMAD
+        if (!empty($formdata->companyid)) {
+            $processed->companyid = $formdata->companyid;
+        }
+
         return $processed;
     }
 
@@ -89,6 +94,13 @@ final class copy_helper {
             \backup::MODE_COPY, $USER->id, \backup::TARGET_NEW_COURSE, null,
             \backup::RELEASESESSION_NO, $copydata);
         $copyids['restoreid'] = $rc->get_restoreid();
+
+        // IOMAD
+        $copyids['companyid'] = 0;
+
+        if (!empty($copydata->companyid)) {
+            $copyids['companyid'] = $copydata->companyid;
+        }
 
         $bc->set_status(\backup::STATUS_AWAITING);
         $bc->get_status();

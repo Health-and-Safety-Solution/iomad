@@ -302,7 +302,8 @@ if ($userform->is_cancelled()) {
         if (!empty($USER->newadminuser)) {
             unset($USER->newadminuser);
             // Apply defaults again - some of them might depend on admin user info, backup, roles, etc.
-            admin_apply_default_settings(null, false);
+            // IOMAD - forcing this as there are issues with caching.
+            admin_apply_default_settings(null, true);
             // Admin account is fully configured - set flag here in case the redirect does not work.
             unset_config('adminsetuppending');
             // Redirect to admin/ to continue with installation.

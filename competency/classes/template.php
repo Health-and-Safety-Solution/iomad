@@ -116,7 +116,9 @@ class template extends persistent {
      * @return bool
      */
     public static function can_manage_context($context) {
-        return \iomad::has_capability('moodle/competency:templatemanage', $context);
+        $companyid = \iomad::get_my_companyid(\context_system::instance(), false);
+        return \iomad::has_capability('moodle/competency:templatemanage', $context) ||
+                \iomad::has_capability('moodle/competency:templatemanage', \core\context\company::instance($companyid));
     }
 
     /**
@@ -135,7 +137,9 @@ class template extends persistent {
      * @return bool
      */
     public static function can_read_context($context) {
-        return \iomad::has_capability('moodle/competency:templateview', $context) || self::can_manage_context($context);
+        $companyid = \iomad::get_my_companyid(\context_system::instance(), false);
+        return \iomad::has_capability('moodle/competency:templateview', $context) || self::can_manage_context($context) ||
+               \iomad::has_capability('moodle/competency:templateview', \core\context\company::instance($companyid));
     }
 
     /**

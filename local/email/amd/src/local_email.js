@@ -24,6 +24,12 @@ define(['jquery'], function($) {
     return {
         init: function() {
 
+            /**
+             * Function which inserts text into the editor when the shortcut
+             * is clicked.
+             *
+             * @param {text} myValue The text value which was clicked
+             */
             function InsertAtCaret(myValue) {
 
                 return $(".insertatcaretactive").each(function() {

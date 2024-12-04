@@ -648,7 +648,6 @@ abstract class template_selector_base {
                 // element with name="frog".
                 '<input type="checkbox" id="' . $name . 'id" name="' . $name . '" value="1"' .
                 $checked . ' /> ' .  '<label for="' . $name . 'id">' . $label . "</label></p>\n";
-        user_preference_allow_ajax_update($name, PARAM_BOOL);
         return $output;
     }
 

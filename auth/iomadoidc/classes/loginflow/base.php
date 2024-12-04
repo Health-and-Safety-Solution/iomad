@@ -508,6 +508,16 @@ class base {
      */
     protected function get_iomadoidcclient() {
         global $CFG;
+
+        // IOMAD
+        require_once($CFG->dirroot . '/local/iomad/lib/company.php');
+        $companyid = iomad::get_my_companyid(context_system::instance(), false);
+        if (!empty($companyid)) {
+            $postfix = "_$companyid";
+        } else {
+            $postfix = "";
+        }
+
         if (empty($this->httpclient) || !($this->httpclient instanceof \auth_iomadoidc\httpclientinterface)) {
             $this->httpclient = new \auth_iomadoidc\httpclient();
         }
@@ -526,7 +536,9 @@ class base {
         $client = new iomadoidcclient($this->httpclient);
         $client->setcreds($clientid, $clientsecret, $redirecturi, $tokenresource, $scope);
 
-        $client->setendpoints(['auth' => $this->config->authendpoint, 'token' => $this->config->tokenendpoint]);
+        $authendpointname = "authendpoint" . $postfix;
+        $tokenendpointname = "tokenendpoint" . $postfix;
+        $client->setendpoints(['auth' => $this->config->$authendpointname, 'token' => $this->config->$tokenendpointname]);
 
         return $client;
     }
@@ -703,14 +715,17 @@ class base {
             }
         }
 
+        $iomadoidcresourcename = "iomadoidcresource" . $postfix;
+        $iomadoidcscopename = "iomadoidcscope" . $postfix;
+
         $tokenrec = new stdClass;
         $tokenrec->iomadoidcuniqid = $iomadoidcuniqid;
         $tokenrec->username = $username;
         $tokenrec->userid = $userid;
         $tokenrec->iomadoidcusername = $iomadoidcusername;
         $tokenrec->scope = !empty($tokenparams['scope']) ? $tokenparams['scope'] : 'openid profile email';
-        $tokenrec->tokenresource = !empty($tokenparams['resource']) ? $tokenparams['resource'] : $this->config->iomadoidcresource;
-        $tokenrec->scope = !empty($tokenparams['scope']) ? $tokenparams['scope'] : $this->config->iomadoidcscope;
+        $tokenrec->tokenresource = !empty($tokenparams['resource']) ? $tokenparams['resource'] : $this->config->$iomadoidcresourcename;
+        $tokenrec->scope = !empty($tokenparams['scope']) ? $tokenparams['scope'] : $this->config->$iomadoidcscopename;
         $tokenrec->authcode = $authparams['code'];
         $tokenrec->token = $tokenparams['access_token'];
         if (!empty($tokenparams['expires_on'])) {

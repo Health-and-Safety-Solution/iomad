@@ -207,12 +207,12 @@ class company_user {
         }
 
         if ( isset($data->selectedcourses) ) {
-            self::enrol($user, array_keys($data->selectedcourses));
+            self::enrol($user, array_keys($data->selectedcourses), $company->id, 0, 0, $data->due);
         }
 
         // Deal with auto enrolments.
         if ($CFG->local_iomad_signup_autoenrol) {
-            $company->autoenrol($user);
+            $company->autoenrol($user, $data->due);
         }
 
         return $user->id;
@@ -344,9 +344,8 @@ class company_user {
      * @param array $courseids
      * @return void
      */
-    public static function enrol($user, $courseids, $companyid=null, $rid = 0, $groupid = 0) {
+    public static function enrol($user, $courseids, $companyid=null, $rid = 0, $groupid = 0, $today = null) {
         global $DB;
-        // This function consists of code copied from uploaduser.php.
 
         // Did we get passed a user id?
         if (!is_object($user)) {
@@ -358,8 +357,9 @@ class company_user {
             $courseids = array($courseids);
         }
 
-        $today = time();
-        $today = make_timestamp(date('Y', $today), date('m', $today), date('d', $today), 0, 0, 0);
+        if (empty($today)) {
+            $today = time();
+        }
 
         $manualcache  = array(); // Cache of used manual enrol plugins in each course.
 
@@ -415,6 +415,7 @@ class company_user {
                 } else {
                     $timeend = 0;
                 }
+
                 // Is the user currently enrolled?
                 if (!empty($manualcache[$courseid]->id) && !$userenrolment = $DB->get_record('user_enrolments', array('userid' => $user->id, 'enrolid' => $manualcache[$courseid]->id))) {
                     $manual->enrol_user($manualcache[$courseid], $user->id, $rid, $today, $timeend, ENROL_USER_ACTIVE);
@@ -426,7 +427,7 @@ class company_user {
                                                                                  AND timeenrolled = :timeallocated",
                                                                                  ['userid' => $user->id,
                                                                                  'courseid' => $courseid,
-                                                                                 'timeallocated' => $userenrolment->timecreated])) {
+                                                                                 'timeallocated' => $userenrolment->timestart])) {
                             // All previous attempts have been completed so enrol again.
                             foreach ($completedrecords as $completedrecord) {
                                 // Complete any license allocations.
@@ -447,6 +448,7 @@ class company_user {
                             // Then re-enrol them.
                             $manual->enrol_user($manualcache[$courseid], $user->id, $rid, $today, $timeend, ENROL_USER_ACTIVE);
                 } else {
+
                     role_assign($rid, $user->id, context_course::instance($courseid));
                     // Fire a duplicate enrol event so we can add it to the tracking tables.
                     $event = \core\event\user_enrolment_created::create(
@@ -932,11 +934,15 @@ class company_user {
     public static function delete_user_course($userid, $courseid, $action = '', $litid = 0) {
         global $DB, $CFG;
 
+        $rebuildcache = false;
+
         try {
             $transaction = $DB->start_delegated_transaction();
 
             // Is this a single entry only?
             if (empty($litid)) {
+                $rebuildcache = true;
+
                 // Remove enrolments
                 $plugins = enrol_get_plugins(true);
                 $instances = enrol_get_instances($courseid, true);
@@ -1015,7 +1021,6 @@ class company_user {
                     }
                 }
             }
-
             if ($action == 'autodelete') {
                 // If this is being called from the course expiry event then the parameters are slightly different.
                 $params =  array('licensecourseid' => $courseid,
@@ -1045,12 +1050,16 @@ class company_user {
 
             // Deal with Iomad track table stuff.
             if ($action == 'delete' || $action == 'revoke') {
-                $DB->delete_records('local_iomad_track', array('userid' => $userid, 'courseid' => $courseid, 'timecompleted' => null));
+                if (empty($litid)) {
+                    $DB->delete_records('local_iomad_track', array('userid' => $userid, 'courseid' => $courseid, 'timecompleted' => null));
+                } else {
+                    $DB->delete_records('local_iomad_track', ['id' => $litid]);
+                }
             } else {
                 $litparams = $litparams +
                              ['userid' => $userid,
                               'courseid' => $courseid];
-                $litsql .= "userid = :userid AND courseid = :courseid AND timecompleted > 0";
+                $litsql .= "userid = :userid AND courseid = :courseid and timecompleted > 0";
                 $DB->set_field_select('local_iomad_track', 'coursecleared', 1, $litsql, $litparams);
             }
             // Fix company licenses
@@ -1114,6 +1123,16 @@ class company_user {
             }
             // All OK commit the transaction.
             $transaction->allow_commit();
+
+            // Clear the course cache as can cause confusion for what is/isn't completed.
+            if ($rebuildcache) {
+                $cachekey = "{$userid}_{$courseid}";
+                $completioncache = cache::make('core', 'completion');
+                $completioncache->delete($cachekey);
+                $coursecache = cache::make('core', 'coursecompletion');
+                $coursecache->delete($cachekey);
+            }
+
         } catch(Exception $e) {
             $transaction->rollback($e);
         }

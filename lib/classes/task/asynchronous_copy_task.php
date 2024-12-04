@@ -56,6 +56,9 @@ class asynchronous_copy_task extends adhoc_task {
         $backuprecord = $DB->get_record('backup_controllers', array('backupid' => $backupid), 'id, itemid', MUST_EXIST);
         $restorerecord = $DB->get_record('backup_controllers', array('backupid' => $restoreid), 'id, itemid', MUST_EXIST);
 
+        // IOMAD
+        $companyid = $this->get_custom_data()->companyid;
+
         // First backup the course.
         mtrace('Course copy: Processing asynchronous course copy for course id: ' . $backuprecord->itemid);
         try {
@@ -190,6 +193,12 @@ class asynchronous_copy_task extends adhoc_task {
         $course->enddate = $copyinfo->enddate;
 
         $DB->update_record('course', $course);
+
+        // IOMAD
+        if (!empty($companyid)) {
+            $company = new \company($companyid);
+            $company->add_course($course, 0, true);
+        }
 
         // Send message to user if enabled.
         $messageenabled = (bool)get_config('backup', 'backup_async_message_users');

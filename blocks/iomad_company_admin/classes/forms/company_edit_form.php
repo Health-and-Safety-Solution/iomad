@@ -132,8 +132,7 @@ class company_edit_form extends \company_moodleform {
         $mform->setType('region', PARAM_NOTAGS);
 
         $mform->addElement('text', 'postcode',
-                            get_string('postcode', 'block_iomad_company_admin'),
-                            'maxlength="50" size="50"');
+                            get_string('postcode', 'block_iomad_company_admin'), ['size' => 20, 'maxlength' => 20]);
         $mform->setType('postcode', PARAM_NOTAGS);
 
         /* copied from user/editlib.php */
@@ -211,13 +210,19 @@ class company_edit_form extends \company_moodleform {
         $mform->setType('companydomains', PARAM_NOTAGS);
         $mform->addHelpButton('companydomains', 'companydomains', 'block_iomad_company_admin');
 
-        $mform->addElement('text', 'maxusers', get_string('companymaxusers', 'block_iomad_company_admin'));
-        $mform->setType('maxusers', PARAM_INT);
-        $mform->addHelpButton('maxusers', 'companymaxusers', 'block_iomad_company_admin');
+        // Max users is restricted.
+        if (iomad::has_capability('block/iomad_company_admin:company_edit_restricted', $this->context)) {
+            $mform->addElement('text', 'maxusers', get_string('companymaxusers', 'block_iomad_company_admin'));
+            $mform->addHelpButton('maxusers', 'companymaxusers', 'block_iomad_company_admin');
 
-        $mform->addElement('text', 'hostname', get_string('companyhostname', 'block_iomad_company_admin'));
+            $mform->addElement('text', 'hostname', get_string('companyhostname', 'block_iomad_company_admin'));
+            $mform->addHelpButton('hostname', 'companyhostname', 'block_iomad_company_admin');
+        } else {
+            $mform->addElement('hidden', 'maxusers');
+            $mform->addElement('hidden', 'hostname');
+        }
+        $mform->setType('maxusers', PARAM_INT);
         $mform->setType('hostname', PARAM_NOTAGS);
-        $mform->addHelpButton('hostname', 'companyhostname', 'block_iomad_company_admin');
 
         // Add in the company role template selector.
         $templates = \company::get_role_templates($this->companyid);
@@ -282,11 +287,19 @@ class company_edit_form extends \company_moodleform {
             $mform->addElement('hidden', 'paymentaccount');
         }
 
-        $mform->addElement('date_time_selector', 'validto', get_string('companyvalidto', 'block_iomad_company_admin'), array('optional' => true));
-        $mform->addElement('duration', 'suspendafter', get_string('companyterminateafter', 'block_iomad_company_admin'));
-        $mform->addHelpButton('validto', 'companyvalidto', 'block_iomad_company_admin');
-        $mform->addHelpButton('suspendafter', 'companyterminateafter', 'block_iomad_company_admin');
-        $mform->disabledIF('suspendafter', 'validto[enabled]', 'notchecked');
+        // Valid to and suspend after are restricted.
+        if (iomad::has_capability('block/iomad_company_admin:company_edit_restricted', $this->context) && false) {
+            $mform->addElement('date_time_selector', 'validto', get_string('companyvalidto', 'block_iomad_company_admin'), array('optional' => true));
+            $mform->addElement('duration', 'suspendafter', get_string('companyterminateafter', 'block_iomad_company_admin'));
+            $mform->addHelpButton('validto', 'companyvalidto', 'block_iomad_company_admin');
+            $mform->addHelpButton('suspendafter', 'companyterminateafter', 'block_iomad_company_admin');
+            $mform->disabledIF('suspendafter', 'validto[enabled]', 'notchecked');
+        } else {
+            $mform->addElement('hidden', 'validto');
+            $mform->addElement('hidden', 'suspendafter');
+            $mform->setType('validto', PARAM_INT);
+            $mform->setType('suspendafter', PARAM_INT);
+        }
 
         $mform->setType('parentid', PARAM_INT);
         $mform->setType('ecommerce', PARAM_INT);
@@ -397,8 +410,13 @@ class company_edit_form extends \company_moodleform {
         /* === end user defaults === */
         $companytheme = $this->companyrecord->theme;
         $ischild = false;
+        $isiomadtheme = false;
         try {
             $theme = \theme_config::load($companytheme);
+            if (preg_match('/iomad/', $companytheme) ||
+                !empty($theme->isiomadtheme)) {
+                $isiomadtheme = true;
+            }
             $iomadthemes = array('iomad', 'iomadboost', 'iomadbootstrap');
             foreach ($theme->parents as $parentstheme) {
                 if (in_array($parentstheme, $iomadthemes)){
@@ -412,7 +430,7 @@ class company_edit_form extends \company_moodleform {
         // Only show the Appearence section if the theme is iomad or you have abilities
         // to change that.
         if (iomad::has_capability('block/iomad_company_admin:company_edit_appearance', $this->context) ||
-             preg_match('/iomad/', $this->companyrecord->theme) || $ischild) {
+             $isiomadtheme || $ischild) {
 
             $mform->addElement('header', 'appearance',
                                     get_string('appearance', 'block_iomad_company_admin'));
@@ -455,7 +473,7 @@ class company_edit_form extends \company_moodleform {
             }
 
             // If theme is already set to a real theme, dont show this.
-            if ( preg_match('/iomad/', $this->companyrecord->theme) || $ischild) {
+            if ( $isiomadtheme || $ischild) {
                 $mform->addElement('HTML', get_string('theoptionsbelow',
                                                       'block_iomad_company_admin'));
                 $mform->addElement('filemanager', 'companylogo',
@@ -479,11 +497,11 @@ class company_edit_form extends \company_moodleform {
                                     get_string('customcss', 'block_iomad_company_admin'),
                                     'wrap="virtual" rows="20" cols="75"');
                 $mform->setType('customcss', PARAM_RAW);
-                $mform->addElement('iomad_colourpicker', 'headingcolor', get_string('headingcolor', 'block_iomad_company_admin'), 'size="20"');
+                $mform->addElement('iomad_colourpicker', 'headingcolor', get_string('headingcolor', 'block_iomad_company_admin'), ['size' => 20, 'maxlength' => 20]);
                 $mform->setType('headingcolor', PARAM_CLEAN);
-                $mform->addElement('iomad_colourpicker', 'maincolor', get_string('maincolor', 'block_iomad_company_admin'), 'size="20"');
+                $mform->addElement('iomad_colourpicker', 'maincolor', get_string('maincolor', 'block_iomad_company_admin'), ['size' => 20, 'maxlength' => 20]);
                 $mform->setType('maincolor', PARAM_CLEAN);
-                $mform->addElement('iomad_colourpicker', 'linkcolor', get_string('linkcolor', 'block_iomad_company_admin'), 'size="20"');
+                $mform->addElement('iomad_colourpicker', 'linkcolor', get_string('linkcolor', 'block_iomad_company_admin'), ['size' => 20, 'maxlength' => 20]);
                 $mform->setType('linkcolor', PARAM_CLEAN);
             } else {
                 $mform->addElement('hidden', 'id_companylogo', $this->companyrecord->companylogo);
@@ -627,7 +645,7 @@ class company_edit_form extends \company_moodleform {
         global $DB, $CFG, $SESSION;
 
         $errors = parent::validation($data, $files);
-        if (!empty($data['createnew']) && $data['parentid'] != $data['currentparentid']) {
+        if (empty($data['createnew']) && $data['parentid'] != $data['currentparentid']) {
             $SESSION->current_editing_company_data = $data;
             redirect(new moodle_url('/blocks/iomad_company_admin/company_edit_form.php', array('createnew' => true, 'parentid' => $data['parentid'])));
             die;
@@ -647,7 +665,10 @@ class company_edit_form extends \company_moodleform {
             }
         }
 
-        if ($foundcompanies = $DB->get_records('company', array('shortname' => $data['shortname']))) {
+        if (!preg_match('/^[a-z0-9_]+$/', $data['shortname'])) {
+            // Check allowed pattern (numbers, letters and underscore).
+            $errors['shortname'] = get_string('invalidshortnameerror', 'core_customfield');
+        } else if ($foundcompanies = $DB->get_records('company', array('shortname' => trim($data['shortname'])))) {
             if (!empty($this->companyid)) {
                 unset($foundcompanies[$this->companyid]);
             }
@@ -661,7 +682,7 @@ class company_edit_form extends \company_moodleform {
                                                   $foundcompanynamestring);
             }
         }
-
+        
         if (!empty($data['code']) &&
             $foundcompanies = $DB->get_records('company', array('code' => $data['code']))) {
             if (!empty($this->companyid)) {

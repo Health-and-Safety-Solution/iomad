@@ -91,9 +91,6 @@ if (empty($templaterecord->subject)) {
 if (empty($templaterecord->body)) {
     $templaterecord->body = get_string($templatename . '_body', 'local_email', $lang);
 }
-if (empty($templaterecord->emailfromothername)) {
-    $templaterecord->emailfromothername = '{Company_Name}';
-}
 
 // Correct the navbar.
 // Set the url.
@@ -183,6 +180,13 @@ $mform = new \local_email\forms\template_edit_form($PAGE->url, $isadding, $isedi
 $templaterecord->body_editor = array('text' => $templaterecord->body, 'format' => 1);
 $templaterecord->signature_editor = array('text' => $templaterecord->signature, 'format' => 1);
 $emailtoarr = array();
+// In case the data is null make it an empty string
+if (empty($templaterecord->emailto)) {
+    $templaterecord->emailto = '';
+}
+if (empty($templaterecord->emailcc)) {
+    $templaterecord->emailcc = '';
+}
 foreach(explode(',', $templaterecord->emailto) as $emailto) {
     $emailtoarr[$emailto] = $emailto;
 }

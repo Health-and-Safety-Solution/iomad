@@ -369,10 +369,6 @@ class user_table extends table_sql {
                             if (has_capability('local/report_users:deleteentries', $companycontext)) {
                                 $delaction .= '<a class="btn btn-danger" href="'.$revokelink.'">' . get_string('revokelicense', 'local_report_users') . '</a>';
                             }
-                        } else {
-                            if (has_capability('local/report_users:clearentries', $companycontext)) {
-                                $delaction .= '<a class="btn btn-danger" href="'.$clearlink.'">' . get_string('clearcourse', 'local_report_users') . '</a>';
-                            }
                         }
                     }
                 }

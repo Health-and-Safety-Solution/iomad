@@ -47,7 +47,10 @@ function local_iomad_learningpath_pluginfile($course,
                                            $forcedownload) {
     global $USER, $DB, $CFG;
 
-    if ($context->contextlevel == CONTEXT_SYSTEM) {
+    $companyid = iomad::get_my_companyid($systemcontext);
+    $companycontext = \core\context\company::instance($companyid);
+
+    if ($context->contextlevel == $companycontext->contextlevel) {
 
         require_login();
         $itemid = (int)array_shift($args);
@@ -76,8 +79,6 @@ function local_iomad_learningpath_pre_course_delete($course) {
 
     // Clear references from the iomad_learningpathcourse table.
     $DB->delete_records('iomad_learningpathcourse', array('course' => $course->id));
-
-    echo $OUTPUT->notification(get_string('removepath', 'local_iomad_learningpath'), 'notifysuccess');
 
     return true;
 }

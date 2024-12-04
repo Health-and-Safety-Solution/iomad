@@ -27,6 +27,8 @@ defined('MOODLE_INTERNAL') || die;
 
 use \company;
 use \iomad;
+use core_user;
+use core_text;
 
 //class user_edit_form extends company_moodleform {
 class user_edit_form extends \moodleform {
@@ -327,6 +329,19 @@ class user_edit_form extends \moodleform {
 
         $usernew = (object)$usernew;
 
+        // Check allowed characters. - We only care if we are being passed a username.
+        if (!empty($CFG->iomad_allow_username)) {
+            if (!$usernew->use_email_as_username) {
+                if (empty($usernew->username)) {
+                    $errors['username'] = get_string('required');
+                } else if ($usernew->username !== core_text::strtolower($usernew->username)) {
+                    $errors['username'] = get_string('usernamelowercase');
+                } else if ($usernew->username !== core_user::clean_field($usernew->username, 'username')) {
+                        $errors['username'] = get_string('invalidusername');
+                }
+            }
+        }
+
         // Validate email.
         if ($existingusers = $DB->get_records('user', array('email' => $usernew->email, 'mnethostid' => $CFG->mnet_localhost_id))) {
             foreach ($existingusers as $existinguser) {
@@ -336,6 +351,18 @@ class user_edit_form extends \moodleform {
                         break;
                     }
                 }
+            }
+        }
+
+        // Validate email as username in the same company.
+        if ($usernew->use_email_as_username) {
+            if ($DB->get_records_sql("SELECT u.id FROM {user} u
+                                      JOIN {company_users} cu ON u.id = cu.userid
+                                      WHERE cu.companyid = :companyid
+                                      AND u.username = :email",
+                                      ['companyid' => $this->company->id,
+                                       'email' => $usernew->email])) {
+                        $errors['email'] = get_string('emailexists');
             }
         }
 
@@ -378,6 +405,7 @@ class user_edit_form extends \moodleform {
                 }
             }
         }
+
         return $errors;
     }
 

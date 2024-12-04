@@ -1962,18 +1962,22 @@ abstract class admin_setting {
         if (!empty($this->plugin)) {
             $value = get_config($this->plugin, $name);
             // IOMAD - had to change this one.
-            if ($value === false) {
-                if (is_array($this->defaultsetting)) {
-                    if (!empty($this->defaultsetting)) {
-                        return $this->defaultsetting[array_key_first($this->defaultsetting)];
+            if (during_initial_install()) {
+                return $value === false ? NULL : $value;
+            } else {
+                if ($value === false) {
+                    if (is_array($this->defaultsetting)) {
+                        if (!empty($this->defaultsetting)) {
+                            return $this->defaultsetting[array_key_first($this->defaultsetting)];
+                        } else {
+                            return NULL;
+                        }
                     } else {
-                        return NULL;
+                        return $this->defaultsetting;
                     }
                 } else {
-                    return $this->defaultsetting;
+                    return $value;
                 }
-            } else {
-                return $value;
             }
 
         } else {
@@ -9058,9 +9062,11 @@ function admin_search_settings_html($query) {
                     $data = $setting->get_setting();
                 // do not use defaults if settings not available - upgradesettings handles the defaults!
                 // IOMAD - Except.....  If it's had the companyid added as a postfix then we need to.
-                    if (preg_match('/_\d+$/', $fullname)) {
-                        if (empty($data)) {
-                            $data = $setting->get_defaultsetting();
+                    if (!during_initial_install()) {
+                        if (preg_match('/_\d+$/', $fullname)) {
+                            if (empty($data)) {
+                                $data = $setting->get_defaultsetting();
+                            }
                         }
                     }
                 }

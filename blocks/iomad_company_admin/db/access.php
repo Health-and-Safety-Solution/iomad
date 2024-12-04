@@ -206,6 +206,15 @@ $capabilities = array(
         ),
     ),
 
+    'block/iomad_company_admin:company_edit_restricted' => array(
+
+        'captype' => 'write',
+        'contextlevel' => CONTEXT_COMPANY,
+        'archetypes' => array(
+            'clientadministrator' => CAP_ALLOW
+        ),
+    ),
+
     'block/iomad_company_admin:company_delete' => array(
 
         'captype' => 'write',
@@ -275,6 +284,15 @@ $capabilities = array(
     ),
 
     'block/iomad_company_admin:createcourse' => array(
+
+        'captype' => 'write',
+        'contextlevel' => CONTEXT_COMPANY,
+        'archetypes' => array(
+            'clientadministrator' => CAP_ALLOW
+        ),
+    ),
+
+    'block/iomad_company_admin:delegatecourse' => array(
 
         'captype' => 'write',
         'contextlevel' => CONTEXT_COMPANY,
@@ -744,7 +762,16 @@ $capabilities = array(
             'clientadministrator' => CAP_ALLOW
         ),
     ),
-    
 
+    'block/iomad_company_admin:view_editusers' => array(
+
+        'captype' => 'write',
+        'contextlevel' => CONTEXT_COMPANY,
+        'archetypes' => array(
+            'companymanager' => CAP_ALLOW,
+            'companydepartmentmanager' => CAP_ALLOW,
+            'clientadministrator' => CAP_ALLOW
+        ),
+    ),
 );
 

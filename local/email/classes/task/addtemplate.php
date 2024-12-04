@@ -52,6 +52,9 @@ class addtemplate extends adhoc_task {
 
         // Get the passed data.
         $customdata = $this->get_custom_data();
+        if (empty($customdata->disabled)) {
+            $customdata->disabled = 0;
+        }
 
         // Get the list of template languages.
         $langs = array_keys(get_string_manager()->get_list_of_translations(true));
@@ -66,6 +69,7 @@ class addtemplate extends adhoc_task {
                     $templaterec->templateset = $templateset->id;
                     $templaterec->name = $customdata->templatename;
                     $templaterec->lang = $lang;
+                    $templaterec->disabled = $customdata->disabled;
                     $DB->insert_record('email_templateset_templates', $templaterec);
                 }
             }
@@ -81,6 +85,7 @@ class addtemplate extends adhoc_task {
                     $templaterec->companyid = $company->id;
                     $templaterec->name = $customdata->templatename;
                     $templaterec->lang = $lang;
+                    $templaterec->disabled = $customdata->disabled;
                     $DB->insert_record('email_template', $templaterec);
                 }
             }

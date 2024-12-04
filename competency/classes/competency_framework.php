@@ -483,7 +483,9 @@ class competency_framework extends persistent {
      * @return bool
      */
     public static function can_manage_context($context) {
-        return \iomad::has_capability('moodle/competency:competencymanage', $context);
+        $companyid = \iomad::get_my_companyid(\context_system::instance(), false);
+        return \iomad::has_capability('moodle/competency:competencymanage', $context) ||
+                \iomad::has_capability('moodle/competency:competencymanage', \core\context\company::instance($companyid));
     }
 
     /**
@@ -502,7 +504,9 @@ class competency_framework extends persistent {
      * @return bool
      */
     public static function can_read_context($context) {
-        return \iomad::has_capability('moodle/competency:competencyview', $context) || self::can_manage_context($context);
+        $companyid = \iomad::get_my_companyid(\context_system::instance(), false);
+        return \iomad::has_capability('moodle/competency:competencyview', $context) || self::can_manage_context($context) ||
+               \iomad::has_capability('moodle/competency:competencyview', \core\context\company::instance($companyid));
     }
 
 }

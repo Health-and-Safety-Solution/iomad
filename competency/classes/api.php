@@ -976,6 +976,16 @@ class api {
             }
         }
 
+        // IOMAD - add the system context back into this.
+        $companyid = \iomad::get_my_companyid(\context_system::instance(), false);
+        if ($companyid > 0) {
+            $companycontext = \core\context\company::instance($companyid);
+            if (has_any_capability($hasanycapability, $companycontext)) {
+                $systemcontext = \context_system::instance();
+                $contexts[$systemcontext->id] = $systemcontext;
+            }
+        }
+
         return $contexts;
     }
 
