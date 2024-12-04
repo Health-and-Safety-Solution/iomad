@@ -106,7 +106,7 @@ class EmailVars {
             // Approvals stuffs.
                         'Approveuser_FirstName', 'Approveuser_LastName',
             // Course fields .
-                        'Course_FullName', 'Course_ShortName', 'CourseURL', 'Course_ReportText',
+                        'Course_FullName', 'Course_ShortName', 'CourseURL', 'Course_ReportText', 'Course_Summary',
             // ClassRoom fields.
                         'Classroom_Name', 'Classroom_Address', 'Classroom_Postcode', 'Classroom_City',
                         'Classroom_Country', 'Classroom_Capacity', 'Classroom_Summary', 'Classroom_Time',

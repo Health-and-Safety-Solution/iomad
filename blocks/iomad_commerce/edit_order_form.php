@@ -28,6 +28,7 @@
 require_once(dirname(__FILE__) . '/../../config.php');
 require_once(dirname(__FILE__) . '/../iomad_company_admin/lib.php');
 require_once(dirname(__FILE__) . '/../../course/lib.php');
+require_once($CFG->dirroot.'/blocks/iomad_ecommerce/lib.php');
 
 \block_iomad_commerce\helper::require_commerce_enabled();
 
@@ -43,22 +44,47 @@ $companyid = iomad::get_my_companyid($systemcontext);
 $companycontext = \core\context\company::instance($companyid);
 $company = new company($companyid);
 
-iomad::require_capability('block/iomad_commerce:admin_view', $companycontext);
+$invoice = \block_iomad_commerce\helper::get_invoice($invoiceid);
+if($invoice->companyid != $companyid) {
+        $SESSION->basketid = NULL;
+        redirect($CFG->wwwroot . '/my', get_string('invoiceblongsToanotherCompany', 'block_iomad_ecommerce'), '', 'error');
+}
 
+if(iomad::has_capability('block/iomad_commerce:admin_view', $companycontext) == false) {
+	if($companyid) {
+		$companycontext = \core\context\company::instance($companyid);
+		$permissiontoview = iomad::has_capability('block/iomad_ecommerce:userorder_view', $companycontext);
+	} else {
+		$permissiontoview = iomad::has_capability('block/iomad_ecommerce:userorder_view', $context);
+	}
+
+	if($permissiontoview) {
+		$myorder = new moodle_url('/blocks/iomad_ecommerce/user_order.php');
+		redirect($myorder);
+	} else {
+		echo $OUTPUT->header();
+		echo $OUTPUT->notification('Thank you for your order. Your order has been received and our team will process the order and get back to you.', 'notifysuccess');
+	        echo $OUTPUT->footer();
+        	exit;
+	}
+}
+
+iomad::require_capability('block/iomad_commerce:admin_view', $companycontext);
+licenseUpdate();
 $urlparams = array();
 if ($returnurl) {
     $urlparams['returnurl'] = $returnurl;
 }
-$companylist = new moodle_url('/blocks/iomad_commerce/orderlist.php', $urlparams);
-
-$invoice = \block_iomad_commerce\helper::get_invoice($invoiceid);
+//$companylist = new moodle_url('/blocks/iomad_commerce/orderlist.php', $urlparams);
+$companylist = new moodle_url('/blocks/iomad_ecommerce/order.php', $urlparams);
+//$invoice = \block_iomad_commerce\helper::get_invoice($invoiceid);
 
 // Set the name for the page.
 $linktext = get_string('orders', 'block_iomad_commerce');
 
 // Set the url.
-$linkurl = new moodle_url('/blocks/iomad_commerce/orderlist.php');
-
+//$linkurl = new moodle_url('/blocks/iomad_commerce/orderlist.php');
+$linkurl = new moodle_url('/blocks/iomad_ecommerce/order.php');
 // Print the page header.
 $PAGE->set_context($companycontext);
 $PAGE->set_url($linkurl);
@@ -96,7 +122,10 @@ if ($mform->is_cancelled()) {
 
     echo $OUTPUT->header();
 
-    $mform->display();
+if (!$invoice->paymentid) {
+	echo "<a href='../../blocks/iomad_ecommerce/checkout.php?invoiceid=".$invoiceid."' target='_blank'><button class='btn btn-primary'>Make Payment</button></a>";
+}
 
+    $mform->display();
     echo $OUTPUT->footer();
 }

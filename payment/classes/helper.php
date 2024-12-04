@@ -253,6 +253,57 @@ class helper {
         $providerclass = static::get_service_provider_classname($component);
         $result = component_class_callback($providerclass, 'deliver_order', [$paymentarea, $itemid, $paymentid, $userid]);
 
+	global $DB, $CFG;
+        require_once(dirname(__FILE__) . '/../../local/email/lib.php');
+
+        if ($basket = $DB->get_record('invoice',  array('id' => $itemid))) {
+            $basket->itemized = \block_iomad_commerce\helper::get_invoice_html($basket->id, 0, 0);
+            // Notify shop admin.
+            if (isset($CFG->commerce_admin_email)) {
+                if (!$shopadmin = $DB->get_record('user', array('email' => $CFG->commerce_admin_email))) {
+                    $shopadmin = new \stdClass;
+                    $shopadmin->email = $CFG->commerce_admin_email;
+                    if (empty($CFG->commerce_admin_firstname)) {
+                        $shopadmin->firstname = "Shop";
+                    } else {
+                        $shopadmin->firstname = $CFG->commerce_admin_firstname;
+                    }
+                    if (empty($CFG->commerce_admin_lastname)) {
+                        $shopadmin->lastname = "Admin";
+                    } else {
+                        $shopadmin->lastname = $CFG->commerce_admin_lastname;
+                    }
+                    $shopadmin->id = -999;
+                    $shopadmin->lang = 'en';
+                }
+            } else {
+                $shopadmin = new \stdClass;
+                $shopadmin->email = $CFG->support_email;
+                if (empty($CFG->commerce_admin_firstname)) {
+                    $shopadmin->firstname = "Shop";
+                } else {
+                    $shopadmin->firstname = $CFG->commerce_admin_firstname;
+                }
+                if (empty($CFG->commerce_admin_lastname)) {
+                    $shopadmin->lastname = "Admin";
+                } else {
+                    $shopadmin->lastname = $CFG->commerce_admin_lastname;
+                }
+                $shopadmin->id = -999;
+                $shopadmin->lang = 'en';
+            }
+
+            $user = $DB->get_record('user',  array('id' => $basket->userid));
+            \EmailTemplate::send('invoice_ordercomplete', array('user' => $user, 'invoice' => $basket, 'sender' => $shopadmin));
+
+            // Notify shop admin.
+            if (isset($CFG->commerce_admin_email)) {
+                \EmailTemplate::send('invoice_ordercomplete_admin', array('user' => $shopadmin,
+                                                                            'invoice' => $basket,
+                                                                            'sender' => $shopadmin));
+            }
+        }
+
         return $result;
     }
 

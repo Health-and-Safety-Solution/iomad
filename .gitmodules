@@ -1,0 +1,54 @@
+[submodule "local/odkintegration"]
+	path = local/odkintegration
+	url = https://github.com/Health-and-Safety-Solution/odkintegration.git
+[submodule "local/iomad_actionlist"]
+	path = local/iomad_actionlist
+	url = https://github.com/Health-and-Safety-Solution/iomad_actionlist.git
+[submodule "blocks/odk_forms"]
+	path = blocks/odk_forms
+	url = https://github.com/Health-and-Safety-Solution/odk_forms.git
+[submodule "blocks/iomad_actions_widget"]
+	path = blocks/iomad_actions_widget
+	url = https://github.com/Health-and-Safety-Solution/iomad_actions_widget.git
+[submodule "local/advance_email"]
+	path = local/advance_email
+	url = https://github.com/Health-and-Safety-Solution/advance_email.git
+[submodule "custom/createAssessmentPDF"]
+	path = custom/createAssessmentPDF
+	url = https://github.com/Health-and-Safety-Solution/createAssessmentPDF.git
+[submodule "custom/ODK_Project_Management"]
+	path = custom/ODK_Project_Management
+	url = https://github.com/Health-and-Safety-Solution/ODK_Project_Management.git
+[submodule "blocks/iomad_doc_widget"]
+	path = blocks/iomad_doc_widget
+	url = https://github.com/Health-and-Safety-Solution/iomad_doc_widget.git
+[submodule "blocks/iomad_ecommerce"]
+	path = blocks/iomad_ecommerce
+	url = https://github.com/Health-and-Safety-Solution/iomad_ecommerce.git
+[submodule "payment/gateway/po"]
+	path = payment/gateway/po
+	url = https://github.com/Health-and-Safety-Solution/paygw_po.git
+[submodule "payment/gateway/stripe"]
+	path = payment/gateway/stripe
+	url = https://github.com/Health-and-Safety-Solution/moodle-paygw_stripe.git
+[submodule "mod/customcert"]
+	path = mod/customcert
+	url = https://github.com/Health-and-Safety-Solution/moodle-mod_customcert.git
+[submodule "auth/userkey"]
+	path = auth/userkey
+	url = https://github.com/Health-and-Safety-Solution/moodle-auth_userkey.git
+[submodule "local/coursetocal"]
+	path = local/coursetocal
+	url = https://github.com/Health-and-Safety-Solution/coursetocal.git
+[submodule "local/reminders"]
+	path = local/reminders
+	url = https://github.com/Health-and-Safety-Solution/moodle-local_reminders.git
+[submodule "local/iomad_xero"]
+	path = local/iomad_xero
+	url = https://github.com/Health-and-Safety-Solution/iomad_xero.git
+[submodule "mod/checklist"]
+	path = mod/checklist
+	url = https://github.com/Health-and-Safety-Solution/moodle-checklist.git
+[submodule "report/customsql"]
+	path = report/customsql
+	url = https://github.com/Health-and-Safety-Solution/moodle-report_customsql.git
