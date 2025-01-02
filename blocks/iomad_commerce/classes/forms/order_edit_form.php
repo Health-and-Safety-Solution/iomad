@@ -55,7 +55,7 @@ class order_edit_form extends moodleform {
 
         $mform->addElement('hidden', 'id', $this->invoiceid);
         $mform->setType('id', PARAM_INT);
-
+	$mform->addElement('html', "<p style='font-size:16px;'>To enrol delegates scroll to the bottom of this page and select the enrol button next to the relevant course.</p><p style='font-size:13px;'><u>Please note:</u> If you create the login for the  delegate or they already exist within your company's user list with the correct email address, you should be able to assign them. If the delegate has created their own account they must click the link in in the confirmation email sent to them before you are able to enrol them on courses.</p>");
         $mform->addElement('header', 'header', get_string('order', 'block_iomad_commerce'));
 
         $mform->addElement('static', 'reference', get_string('reference', 'block_iomad_commerce'));

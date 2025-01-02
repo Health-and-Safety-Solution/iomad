@@ -296,6 +296,29 @@ class helper {
             $user = $DB->get_record('user',  array('id' => $basket->userid));
             \EmailTemplate::send('invoice_ordercomplete', array('user' => $user, 'invoice' => $basket, 'sender' => $shopadmin));
 
+                //Begin Customisation: To send Email to email address in Order
+		if (!$orderuser = $DB->get_record('user', array('email' => $basket->email))) {
+                    $orderuser = new \stdClass;
+                    $orderuser->email = $basket->email;
+                    if (empty($basket->firstname)) {
+                        $orderuser->firstname = "Customer";
+                    } else {
+                        $orderuser->firstname = $basket->firstname;
+                    }
+                    if (empty($basket->lastname)) {
+                        $orderuser->lastname = "Customer";
+                    } else {
+                        $orderuser->lastname = $basket->lastname;
+                    }
+                    $orderuser->id = -999;
+		    \EmailTemplate::send('invoice_ordercomplete', array('user' => $orderuser, 'invoice' => $basket, 'sender' => $shopadmin));
+                } else {
+		    if ($basket->userid <> $orderuser->id) {
+			\EmailTemplate::send('invoice_ordercomplete', array('user' => $orderuser, 'invoice' => $basket, 'sender' => $shopadmin));
+		    }
+		}
+                //End Customisation
+
             // Notify shop admin.
             if (isset($CFG->commerce_admin_email)) {
                 \EmailTemplate::send('invoice_ordercomplete_admin', array('user' => $shopadmin,
