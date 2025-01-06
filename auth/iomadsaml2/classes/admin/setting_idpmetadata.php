@@ -39,6 +39,8 @@ class setting_idpmetadata extends admin_setting_configtextarea {
     /**
      * Constructor
      */
+    protected $postfix;
+    protected $companyid;
     public function __construct($postfix = "") {
 
         // IOMAD set the postfix.

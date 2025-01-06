@@ -28,12 +28,21 @@ defined('MOODLE_INTERNAL') || die();
 
 global $CFG, $iomadsaml2auth, $iomadsaml2config;
 
+// IOMAD
+require_once($CFG->dirroot . '/local/iomad/lib/company.php');
+$companyid = iomad::get_my_companyid(context_system::instance(), false);
+if (!empty($companyid)) {
+    $postfix = "_$companyid";
+} else {
+    $postfix = "";
+}
+
 $metadatasources = [];
 foreach ($iomadsaml2auth->metadataentities as $idpentity) {
     $metadataurlhash = md5($idpentity->metadataurl);
     $metadatasources[$metadataurlhash] = [
         'type' => 'xml',
-        'file' => "$CFG->dataroot/iomadsaml2/" . $metadataurlhash . ".idp.xml"
+        'file' => "$CFG->dataroot/iomadsaml2/" . $metadataurlhash . $postfix . ".idp.xml"
     ];
 }
 

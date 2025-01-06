@@ -31,6 +31,8 @@ class department_edit_form extends company_moodleform {
     protected $company = null;
     protected $deptid = 0;
     protected $output = null;
+    protected $departmentid;
+    protected $parentid;
 
     public function __construct($actionurl, $companyid, $departmentid, $output) {
         global $CFG, $DB;
@@ -106,7 +108,7 @@ class department_edit_form extends company_moodleform {
             }
         }
 
-        if (!preg_match('/^[a-z0-9_]+$/', trim($data['shortname']))) {
+        if (!preg_match('/^[A-Za-z0-9_]+$/', trim($data['shortname']))) {
             // Check allowed pattern (numbers, letters and underscore).
             $errors['shortname'] = get_string('invalidshortnameerror', 'core_customfield');
         }

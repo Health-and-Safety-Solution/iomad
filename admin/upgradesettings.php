@@ -38,6 +38,8 @@ unset($newsettings);
 $focus = '';
 
 if (empty($adminroot->errors) and $newsettingshtml === '') {
+    // IOMAD
+    unset($SESSION->iomadupgradecheck);
     // there must be either redirect without message or continue button or else upgrade would be sometimes broken
     if ($return == 'site') {
         redirect("$CFG->wwwroot/");

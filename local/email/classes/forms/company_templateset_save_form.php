@@ -33,6 +33,9 @@ use \block_iomad_commerce\helper;
 
 // Set up the save form.
 class company_templateset_save_form extends moodleform {
+    
+    protected $templatesetid;
+    protected $companyid;
 
     public function __construct($actionurl,
                                 $companyid,

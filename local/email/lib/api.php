@@ -41,6 +41,7 @@ class EmailTemplate {
     protected $due = null;
     protected $nugget = null;
     protected $attachment = null;
+    protected $license = null;
 
     /**
      * Send an email to (a) specified user(s)

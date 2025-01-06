@@ -42,7 +42,7 @@ require_once("{$CFG->dirroot}/auth/iomadsaml2/auth.php");
  * @param integer $numberofdays Certificate expirey period
  */
 function create_certificates($iomadsaml2auth, $dn = false, $numberofdays = 3650) {
-    global $SITE;
+    global $CFG, $SITE;
 
     if (get_config('auth_iomadsaml2', 'certs_locked') == true) {
         throw new iomadsaml2_exception('cert_lock_error', get_string('certificatelock_regenerate', 'auth_iomadsaml2'));

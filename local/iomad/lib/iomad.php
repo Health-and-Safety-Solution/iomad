@@ -56,11 +56,13 @@ class iomad {
      * @returns int
      */
     public static function get_my_companyid($context, $required=true) {
-        global $SESSION, $USER, $DB;
+        global $SESSION, $USER, $DB, $CFG;
 
         // are we logged in?
         if (during_initial_install() ||
-            (empty($USER->id) && empty($SESSION->currenteditingcompany)) ||
+            (empty($USER->id) &&
+             (empty($SESSION->currenteditingcompany) &&
+              empty($CFG->foundcompanyid))) ||
             !$DB->get_manager()->table_exists('company')) {
             return -1;
         }
@@ -76,6 +78,14 @@ class iomad {
             } else {
                 redirect(new moodle_url('/blocks/iomad_company_admin/index.php'), get_string('pleaseselect', 'block_iomad_company_admin'));
             }
+        } else if (!empty($CFG->foundcompanyid)) {
+            // If the SESSION variable isn't set up when we initially find the company id
+            // e.g. on hostname matching - we end up here.
+            $companyid = $CFG->foundcompanyid;
+            $SESSION->currenteditingcompany = $CFG->foundcompanyid;
+
+            // Forget this from now on.
+            unset ($CFG->foundcompanyid);
         } else {
             $companyid = 0;
         }
@@ -457,7 +467,7 @@ class iomad {
                 $mycompanycategories = $DB->get_records_sql("SELECT DISTINCT cc.id
                                                              FROM {course_categories} cc
                                                              WHERE " . $DB->sql_like('cc.path', ':companycategorysearch'),
-                                                             ['companycategorysearch' => '/' . $company->category . '']);
+                                                             ['companycategorysearch' => '/' . $company->category . '/%']);
                 $companycategoriescache->set($company->id, $mycompanycategories);
             }
         } else {
@@ -759,7 +769,7 @@ class iomad {
      * the user belongs to a different company.
      * Otherwise, return true
      */
-    public static function iomad_check_course($course) {
+    public static function iomad_check_course($courseid) {
         global $CFG, $DB, $USER;
 
         // If we are installing this will be called to build
@@ -768,18 +778,23 @@ class iomad {
             return true;
         }
 
-        // Try to find the category in company list.
-        if (!empty($course->id) && $company = $DB->get_record( 'company_course', array('courseid' => $course->id) ) ) {
-            // If this is not the user's company then we return false.
-            if ($DB->get_record('company_users', array('userid' => $USER->id, 'companyid' => $company->companyid))) {
-                // User is not assigned to this company - hide the category.
+        // Get the user company id.
+        $companyid = iomad::get_my_companyid(context_system::instance());
+        if ($companyid > 0) {
+            $company = new company($companyid);
+
+            $companycourses = $company->get_menu_courses(true, false, false, false, false, true);
+        
+            // Check if the passed courseid is in the list.
+            if (!empty($companycourses[$courseid])) {
+
+                // Course is visible.
                 return true;
-            } else {
-                return false;
             }
         }
-        // Category is visible.
-        return true;
+
+        // User can't see it.
+        return false;
     }
 
     /**
@@ -1913,6 +1928,40 @@ class iomad {
             }
         }
     }
+
+    /**
+     * Fix the passed URL to use the tenant one.
+     **/
+     public static function fix_url($url) {
+         global $CFG;
+
+         $myurlarray = parse_url($CFG->wwwroot);
+         $urlarray = parse_url($url);
+
+         // make the passed hostname my hostname.
+         $urlarray['host'] = $myurlarray['host'];
+
+        return self::unparse_url($urlarray);
+     }
+
+    /**
+     * Unparse a URL array and send back the whole thing.
+     * Found script on PHP.net by thomas at gielfeldt dot com
+     **/
+    private static function unparse_url($parsed_url) {
+
+        $scheme   = isset($parsed_url['scheme']) ? $parsed_url['scheme'] . '://' : '';
+        $host     = isset($parsed_url['host']) ? $parsed_url['host'] : '';
+        $port     = isset($parsed_url['port']) ? ':' . $parsed_url['port'] : '';
+        $user     = isset($parsed_url['user']) ? $parsed_url['user'] : '';
+        $pass     = isset($parsed_url['pass']) ? ':' . $parsed_url['pass']  : '';
+        $pass     = ($user || $pass) ? "$pass@" : '';
+        $path     = isset($parsed_url['path']) ? $parsed_url['path'] : '';
+        $query    = isset($parsed_url['query']) ? '?' . $parsed_url['query'] : '';
+        $fragment = isset($parsed_url['fragment']) ? '#' . $parsed_url['fragment'] : '';
+
+        return "$scheme$user$pass$host$port$path$query$fragment";
+     }
 }
 
 /**

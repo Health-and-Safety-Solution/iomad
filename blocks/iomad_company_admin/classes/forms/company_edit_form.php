@@ -37,6 +37,12 @@ class company_edit_form extends \company_moodleform {
     protected $description = '';
     protected $companyid;
     protected $companyrecord;
+    protected $parentcompanyid;
+    protected $previousroletemplateid;
+    protected $previousemailtemplateid;
+    protected $child;
+    protected $context;
+    protected $parentcompany;
 
     public function __construct($actionurl, $isadding, $companyid, $companyrecord, $firstcompany = false, $parentcompanyid = 0, $child = false) {
         global $DB, $CFG;
@@ -288,7 +294,7 @@ class company_edit_form extends \company_moodleform {
         }
 
         // Valid to and suspend after are restricted.
-        if (iomad::has_capability('block/iomad_company_admin:company_edit_restricted', $this->context) && false) {
+        if (iomad::has_capability('block/iomad_company_admin:company_edit_restricted', $this->context)) {
             $mform->addElement('date_time_selector', 'validto', get_string('companyvalidto', 'block_iomad_company_admin'), array('optional' => true));
             $mform->addElement('duration', 'suspendafter', get_string('companyterminateafter', 'block_iomad_company_admin'));
             $mform->addHelpButton('validto', 'companyvalidto', 'block_iomad_company_admin');
@@ -665,7 +671,7 @@ class company_edit_form extends \company_moodleform {
             }
         }
 
-        if (!preg_match('/^[a-z0-9_]+$/', $data['shortname'])) {
+        if (!preg_match('/^[A-Za-z0-9_]+$/', $data['shortname'])) {
             // Check allowed pattern (numbers, letters and underscore).
             $errors['shortname'] = get_string('invalidshortnameerror', 'core_customfield');
         } else if ($foundcompanies = $DB->get_records('company', array('shortname' => trim($data['shortname'])))) {

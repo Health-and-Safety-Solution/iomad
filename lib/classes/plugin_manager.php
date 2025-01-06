@@ -1037,7 +1037,7 @@ class core_plugin_manager {
             }
 
             // Make sure we have write access to all the existing code.
-            if (is_dir($localinfo->rootdir)) {
+            if (!empty($localinfo->rootdir) && is_dir($localinfo->rootdir)) {
                 if (!$this->is_plugin_folder_removable($component)) {
                     $reason = 'notwritableplugin';
                     return false;

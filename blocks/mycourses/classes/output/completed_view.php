@@ -45,6 +45,7 @@ class completed_view implements renderable, templatable {
      * @param array $courses list of courses.
      * @param array $coursesprogress list of courses progress.
      */
+    protected $mycompletion;     
     public function __construct($mycompletion) {
         $this->mycompletion = $mycompletion;
     }

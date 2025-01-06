@@ -1958,28 +1958,37 @@ abstract class admin_setting {
      * @return mixed returns config if successful else null
      */
     public function config_read($name) {
-        global $CFG;
-        if (!empty($this->plugin)) {
-            $value = get_config($this->plugin, $name);
-            // IOMAD - had to change this one.
-            if (during_initial_install()) {
+        global $SESSION, $CFG;
+
+        if (during_initial_install() ||
+            !empty($CFG->upgraderunning) ||
+            !empty($SESSION->iomadupgradecheck)) {
+            if (!empty($this->plugin)) {
+                $value = get_config($this->plugin, $name);
                 return $value === false ? NULL : $value;
+
             } else {
-                if ($value === false) {
-                    if (is_array($this->defaultsetting)) {
-                        if (!empty($this->defaultsetting)) {
-                            return $this->defaultsetting[array_key_first($this->defaultsetting)];
-                        } else {
-                            return NULL;
-                        }
-                    } else {
-                        return $this->defaultsetting;
-                    }
+                if (isset($CFG->$name)) {
+                    return $CFG->$name;
                 } else {
-                    return $value;
+                    return NULL;
                 }
             }
-
+        } else if (!empty($this->plugin)) {
+            $value = get_config($this->plugin, $name);
+            if ($value === false) {
+                if (is_array($this->defaultsetting)) {
+                    if (!empty($this->defaultsetting)) {
+                        return $this->defaultsetting[array_key_first($this->defaultsetting)];
+                    } else {
+                        return NULL;
+                    }
+                } else {
+                    return $this->defaultsetting;
+                }
+            } else {
+                return $value;
+            }
         } else {
             if (isset($CFG->$name)) {
                 return $CFG->$name;

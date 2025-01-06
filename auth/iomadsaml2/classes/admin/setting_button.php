@@ -47,6 +47,8 @@ class setting_button extends admin_setting_heading {
      * @param string $label       what is written on the button
      * @param string $href        the URL directed to on click
      */
+    protected $label;
+    protected $href;
     public function __construct($name, $visiblename, $description, $label, $href) {
         $this->nosave = true;
         $this->label = $label;
