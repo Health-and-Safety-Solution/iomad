@@ -47,7 +47,7 @@ class order_edit_form extends moodleform {
     }
 
     public function definition() {
-        global $CFG;
+        global $CFG, $DB;
 
         $mform =& $this->_form;
 
@@ -55,18 +55,24 @@ class order_edit_form extends moodleform {
 
         $mform->addElement('hidden', 'id', $this->invoiceid);
         $mform->setType('id', PARAM_INT);
-
+	$mform->addElement('html', "<p style='font-size:16px;'>To enrol delegates scroll to the bottom of this page and select the enrol button next to the relevant course.</p><p style='font-size:13px;'><u>Please note:</u> If you create the login for the  delegate or they already exist within your company's user list with the correct email address, you should be able to assign them. If the delegate has created their own account they must click the link in in the confirmation email sent to them before you are able to enrol them on courses.</p>");
         $mform->addElement('header', 'header', get_string('order', 'block_iomad_commerce'));
 
         $mform->addElement('static', 'reference', get_string('reference', 'block_iomad_commerce'));
 
-        $choices = [];
-        foreach ([\block_iomad_commerce\helper::INVOICESTATUS_UNPAID, \block_iomad_commerce\helper::INVOICESTATUS_PAID] as $status) {
-            $choices[$status] = get_string('status_' . $status, 'block_iomad_commerce');
-        }
-        $mform->addElement('select', 'status', get_string('status'), $choices);
-        $mform->addRule('status', $strrequired, 'required', null, 'client');
-        $mform->disabledIf('status', 'id', 'ne', 0);
+	$po_detail = $DB->get_record_sql("select po,mdl_blocks_ecommerce_status.status from mdl_paygw_po LEFT JOIN mdl_blocks_ecommerce_status ON  mdl_paygw_po.invoiceid = mdl_blocks_ecommerce_status.invoiceid WHERE mdl_paygw_po.invoiceid=".$this->invoiceid);
+	if ($po_detail) {
+		$pay_status = ($po_detail->status == 'p' ? 'Paid' : 'Unpaid');
+		$mform->addElement('static', 'static', 'On Account booking using PO/Ref# <b>'.$po_detail->po.'</b>. Invoice is '.$pay_status);
+	} else {
+	        $choices = [];
+        	foreach ([\block_iomad_commerce\helper::INVOICESTATUS_UNPAID, \block_iomad_commerce\helper::INVOICESTATUS_PAID] as $status) {
+	            $choices[$status] = get_string('status_' . $status, 'block_iomad_commerce');
+        	}
+	        $mform->addElement('select', 'status', get_string('status'), $choices);
+        	$mform->addRule('status', $strrequired, 'required', null, 'client');
+	        $mform->disabledIf('status', 'id', 'ne', 0);
+	}
 
         $mform->addElement('header', 'header', get_string('purchaser_details', 'block_iomad_commerce'));
 
