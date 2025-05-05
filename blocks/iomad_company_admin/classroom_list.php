@@ -31,7 +31,7 @@ $sort         = optional_param('sort', 'name', PARAM_ALPHA);
 $dir          = optional_param('dir', 'ASC', PARAM_ALPHA);
 $page         = optional_param('page', 0, PARAM_INT);
 $perpage      = optional_param('perpage', $CFG->iomad_max_list_classrooms, PARAM_INT);        // How many per page.
-$search = optional_param('search', '', PARAM_ALPHANUM);
+$search = optional_param('search', '', PARAM_CLEAN);
 
 require_login();
 
@@ -110,6 +110,9 @@ if (iomad::has_capability('block/iomad_company_admin:classrooms_add', $companyco
 }
 
 $PAGE->set_button($buttons);
+
+// Remove page parameter from the $baseurl variable
+$baseurl->remove_params(['page']);
 
 $searchform = new iomad_company_search_form($baseurl, []);
 

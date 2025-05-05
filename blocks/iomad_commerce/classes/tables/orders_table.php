@@ -123,7 +123,7 @@ class orders_table extends table_sql {
     public function col_date($row) {
         global $CFG;
 
-        return format_string(date($CFG->iomad_date_format, $row->date));
+        return format_string(userdate($row->date, $CFG->iomad_date_format));
     }
 
     /**

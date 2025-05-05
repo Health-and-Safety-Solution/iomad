@@ -25,10 +25,13 @@ namespace block_iomad_commerce;
 use iomad;
 use company;
 use company_user;
+use core_user;
 use context_system;
+use EmailTemplate;
 
 require_once(dirname(__FILE__) . '/../../../config.php');
 require_once($CFG->dirroot . '/local/iomad/lib/company.php');
+require_once($CFG->dirroot . '/local/email/lib.php');
 
 class processor {
     public static function trigger_oncheckout($invoiceid) {
@@ -46,6 +49,7 @@ class processor {
         self::trigger_invoiceitem_onordercomplete($invoice->id, 'onordercomplete', $invoice );
         $invoice->status = \block_iomad_commerce\helper::INVOICESTATUS_PAID;
         $DB->update_record('invoice', $invoice);
+        self::email_invoices($invoice);
     }
 
     private static function process_all_items($invoiceid, $eventname, $invoice = null) {
@@ -64,7 +68,7 @@ class processor {
         global $DB;
         if ($item = $DB->get_record('invoiceitem', array('invoiceid' => $invoiceitemid, 'processed' => 0), '*')) {
             $processorname = $item->invoiceableitemtype;
-            $function = $processorname . "_" . $eventname;
+            $function = $processorname . "_onordercomplete";
             self::$function($item, $invoice);
         }
     }
@@ -109,7 +113,7 @@ class processor {
         // Get name for company license.
         $companyid = iomad::get_my_companyid(context_system::instance());
         $company = $DB->get_record('company', ['id' => $companyid]);
-        $licensename = $company->shortname . " [" . $iteminfo->name . "] " . date($CFG->iomad_date_format);
+        $licensename = $company->shortname . " [" . $iteminfo->name . "] " . userdate(time(), $CFG->iomad_date_format);
         $count = $DB->count_records_sql("SELECT COUNT(*) FROM {companylicense} WHERE " . $DB->sql_like('name', ":licensename"),
                                          ['licensename' => str_replace("'", "\'", $licensename) . "%'"]);
 
@@ -206,7 +210,7 @@ class processor {
         $company = $DB->get_record('company', ['id' => $companyid]);
         $item = $DB->get_record('course_shopsettings', ['id' => $invoiceitem->invoiceableitemid]);
         $courses = $DB->get_records('course_shopsettings_courses', ['itemid' => $item->id]);
-        $licensename = $company->shortname . " [" . $item->name . "] " . date($CFG->iomad_date_format);
+        $licensename = $company->shortname . " [" . $item->name . "] " . userdate(time(), $CFG->iomad_date_format);
         $count = $DB->count_records_sql("SELECT COUNT(*) FROM {companylicense} WHERE name LIKE '" .
                                         (str_replace("'", "\'", $licensename)) . "%'");
         if ($count) {
@@ -260,5 +264,101 @@ class processor {
         $invoiceitem->processed = 1;
         $DB->update_record('invoiceitem', $invoiceitem);
         $transaction->allow_commit();
+    }
+
+    public static function email_invoices($invoice) {
+        global $CFG, $DB;
+
+        if (empty($invoice)) {
+            return;
+        }
+
+        $basket = \block_iomad_commerce\helper::get_basket_by_id($invoice->id, \block_iomad_commerce\helper::INVOICESTATUS_PAID);
+        $invoice->itemized = \block_iomad_commerce\helper::get_invoice_html($basket->id, 0, 0);
+
+        // Notify shop admin.
+        if (isset($CFG->commerce_admin_email)) {
+            if (!$shopadmin = $DB->get_record('user', array('email' => $CFG->commerce_admin_email))) {
+                $shopadmin = (object) [];
+                $shopadmin->email = $CFG->commerce_admin_email;
+                if (empty($CFG->commerce_admin_firstname)) {
+                    $shopadmin->firstname = "Shop";
+                } else {
+                    $shopadmin->firstname = $CFG->commerce_admin_firstname;
+                }
+                if (empty($CFG->commerce_admin_lastname)) {
+                    $shopadmin->lastname = "Admin";
+                } else {
+                    $shopadmin->lastname = $CFG->commerce_admin_lastname;
+                }
+                $shopadmin->id = -999;
+            }
+        } else {
+            $shopadmin = (object) [];
+            $shopadmin->email = $CFG->support_email;
+            if (empty($CFG->commerce_admin_firstname)) {
+                $shopadmin->firstname = "Shop";
+            } else {
+                $shopadmin->firstname = $CFG->commerce_admin_firstname;
+            }
+            if (empty($CFG->commerce_admin_lastname)) {
+                $shopadmin->lastname = "Admin";
+            } else {
+                $shopadmin->lastname = $CFG->commerce_admin_lastname;
+            }
+            $shopadmin->id = -999;
+        }
+
+        if ($user = $DB->get_record('user',  array('id' => $invoice->userid))) {
+            EmailTemplate::send('invoice_ordercomplete', ['user' => $user, 'invoice' => $invoice, 'sender' => $shopadmin]);
+
+            // Notify shop admin.
+            if (isset($CFG->commerce_admin_email)) {
+                $template = new EmailTemplate('invoice_ordercomplete_admin', ['user' => $user,
+                                                                              'invoice' => $invoice,
+                                                                              'sender' => $shopadmin]);
+                $company = new company($invoice->companyid);
+                if ($company->email_template_is_enabled('invoice_ordercomplete_admin', 2)) {
+                    $params = (object) [];
+                    $params->fullname = fullname($shopadmin);
+                    $params->firstname = $shopadmin->firstname;
+                    $params->lastname = $shopadmin->lastname;
+                    $mail = get_mailer();
+
+                    $supportuser = core_user::get_support_user();
+                    if (!empty($CFG->supportemail)) {
+                        $supportuser->email = $CFG->supportemail;
+                    }
+                    if ($CFG->supportname) {
+                        $supportuser->firstname = $CFG->supportname;
+                    }
+
+                    $subject = $user->email . ": " . $template->subject();
+                    $messagetext = $template->body();
+
+                    $mail->Sender = $CFG->noreplyaddress;
+                    $mail->FromName = $supportuser->firstname;
+                    $mail->From     = $CFG->noreplyaddress;
+                    if (empty($CFG->divertallemailsto)) {
+                        $mail->Subject = substr($subject, 0, 900);
+                    } else {
+                        $mail->Subject = substr('[DIVERTED ' . $shopadmin->email . '] ' . $subject, 0, 900);
+                        $shopadmin->email = $CFG->divertallemailsto;
+                    }
+
+                    $mail->addAddress($shopadmin->email, '');
+
+                    // Set word wrap.
+                    $mail->WordWrap = 79;
+
+                    $mail->Body =  "\n$messagetext\n";
+                    $mail->IsHTML();
+
+                    if (empty($CFG->noemailever)) {
+                        $mail->send();
+                    }
+                }
+            }
+        }
     }
 }

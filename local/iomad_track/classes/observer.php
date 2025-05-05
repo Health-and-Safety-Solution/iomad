@@ -131,7 +131,7 @@ class observer {
         $course = $DB->get_record('course', array('id' => $courseid), '*', MUST_EXIST);
 
         // Get context
-        $context = \context_course::instance($courseid);
+        $context = \context_user::instance($userid);
 
         // Get user
         $user = $DB->get_record('user', array('id' => $userid), '*', MUST_EXIST);
@@ -273,9 +273,13 @@ class observer {
                     }
                     $trackrec->modifiedtime = time();
                     $DB->update_record('local_iomad_track', $trackrec);
-                    // Record the certificate.
-                    self::record_certificates($courseid, $userid, $trackrec->id);
+
+                    // Fire the ad-hoc task to generate the certificate.
+                    // Slower but avoids race conditions with course activity restictions that
+                    // are potentially part of this event listener set.
                     $trackid = $trackrec->id;
+                    $task = new \local_iomad_track\task\savecertificatetask();
+                    $task->queue_task($userid, $courseid, $trackid);
                 }
             } else {
                 // For some reason we don't already have a record.
@@ -343,8 +347,11 @@ class observer {
     
                 $trackid = $DB->insert_record('local_iomad_track', $completion);
 
-                // Deal with the certificate.
-                self::record_certificates($courseid, $userid, $trackid);
+                // Fire the ad-hoc task to generate the certificate.
+                // Slower but avoids race conditions with course activity restictions that
+                // are potentially part of this event listener set.
+                $task = new \local_iomad_track\task\savecertificatetask();
+                $task->queue_task($userid, $courseid, $trackid);
             }
         }
 

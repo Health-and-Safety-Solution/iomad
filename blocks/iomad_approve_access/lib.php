@@ -201,7 +201,7 @@ class iomad_approve_access {
         }
 
         // Default return nothing.  We shouldn't get here.
-        return array();
+        return[];
     }
 
     /**
@@ -212,69 +212,252 @@ class iomad_approve_access {
      *        $event = stdclass();
      *
      **/
-    public static function register_user($user, $event, $waitlisted=0) {
-        global $DB;
+    public static function register_user($user, $trainingevent, $waitlisted=0) {
+        global $DB, $USER, $company;
 
-        // Set up the trainingevent record.
-        $trainingeventrecord = new stdclass();
-        $trainingeventrecord->userid = $user->id;
-        $trainingeventrecord->trainingeventid = $event->id;
-        $trainingeventrecord->waitlisted = $waitlisted;
+        // Get the CMID.
+        if (! $cm = get_coursemodule_from_instance('trainingevent', $trainingevent->id)) {
+            throw new moodle_exception('invalidcoursemodule');
+        }
 
         // Do we already have this?
-        if (!$currentrecord = $DB->get_record('trainingevent_users', array('userid' => $user->id, 'trainingeventid' => $event->id))) {
+        if (!$currentrecord = $DB->get_record('trainingevent_users', ['userid' => $user->id,
+                                                                      'trainingeventid' => $trainingevent->id])) {
+
+            // Set up the trainingevent record.
+            $currentrecord = (object) ['userid' => $user->id,
+                                       'trainingeventid' => $trainingevent->id,
+                                       'waitlisted' => $waitlisted,
+                                       'approved' => 1];
 
             // If not insert it.
-            if (!$trainingeventrecord->id = $DB->insert_record('trainingevent_users', $trainingeventrecord)) {
+            if (!$currentrecord->id = $DB->insert_record('trainingevent_users', $currentrecord)) {
 
                 // Throw an error if that doesn't work.
                 throw new moodle_exception(get_string('updatefailed', 'block_iomad_approve_access'));
             }
-            $currentrecord = $trainingeventrecord;
+        } else {
+            $DB->set_field('trainingevent_users', 'waitlisted', $waitlisted, ['id' => $currentrecord->id]);
+            $DB->set_field('trainingevent_users', 'approved', 1, ['id' => $currentrecord->id]);
         }
-        $DB->set_field('trainingevent_users', 'waitlisted', $waitlisted, ['id' => $currentrecord->id]);
 
-        // Get the CMID.
-        $cmidinfo = $DB->get_record_sql("SELECT * FROM {course_modules}
-                                         WHERE instance = :eventid
-                                         AND module = ( SELECT id FROM {modules}
-                                           WHERE name = 'trainingevent')", array('eventid' => $event->id));
+        // Fire an event for this.
+        $eventother = ['waitlisted' => 0,
+                       'skipemails' => true];
+        $event = \mod_trainingevent\event\user_attending::create(['context' => context_module::instance($cm->id),
+                                                                  'userid' => $USER->id,
+                                                                  'relateduserid' => $user->id,
+                                                                  'objectid' => $trainingevent->id,
+                                                                  'companyid' => $company->id,
+                                                                  'courseid' => $trainingevent->course,
+                                                                  'other' => $eventother]);
+        $event->trigger();
+    }
 
-        $location = $DB->get_record('classroom', ['id' => $event->classroomid]);
+    /**
+     * Handler for the mod_trainingevent/trainingevent_reset event
+     *
+     */
+     public static function trainingevent_reset($event) {
+         global $DB;
 
-        if (empty($waitlisted)) {
+         // Delete all of the approval records for this training event.
+         $trainingeventid = $event->objectid;
+         $DB->delete_records('block_iomad_approve_access', ['activityid'=> $trainingeventid]);
 
-            // Add to the users calendar.
-            $calendarevent = new stdClass();
-            $calendarevent->eventtype = TRAININGEVENT_EVENT_TYPE; // Constant defined somewhere in your code - this can be any string value you want. It is a way to identify the event.
-            $calendarevent->type = CALENDAR_EVENT_TYPE_ACTION; // This is used for events we only want to display on the calendar, and are not needed on the block_myoverview.
-            $calendarevent->name = get_string('calendarstart', 'trainingevent', $event->name);
-            $calendarevent->description = format_module_intro('trainingevent', $event, $cmidinfo->id, false);
-            $calendarevent->format = FORMAT_HTML;
-            $eventlocation = format_string($location->name);
-            if (!empty($location->address)) {
-                $eventlocation .= ", " . format_string($location->address);
-            }
-            if (!empty($location->city)) {
-                $eventlocation .= ", " . format_string($location->city);
-            }
-            if (!empty($location->country)) {
-                $eventlocation .= ", " . format_string($location->country);
-            }
-            if (!empty($location->postcode)) {
-                $eventlocation .= ", " . format_string($location->postcode);
-            }
-            $calendarevent->location = $eventlocation; 
-            $calendarevent->courseid = $event->course;
-            $calendarevent->groupid = 0;
-            $calendarevent->userid = $user->id;
-            $calendarevent->modulename = 'trainingevent';
-            $calendarevent->instance = $event->id;
-            $calendarevent->timestart = $event->startdatetime;
-            $calendarevent->visible = instance_is_visible('trainingevent', $event);
-            $calendarevent->timeduration = $event->enddatetime - $event->startdatetime;
+         return;
+     }
 
-            calendar_event::create($calendarevent, false);
+    /**
+     * Handler for the mod_trainingevent/attendance_withdrawn event
+     * and the mod_trainingevent/user_removed event
+     *
+     */
+     public static function user_removed($event) {
+         global $DB;
+
+         // Delete all of the approval records for this training event.
+         $trainingeventid = $event->objectid;
+         $userid = $event->relateduserid;
+
+         $DB->delete_records('block_iomad_approve_access', ['activityid'=> $trainingeventid, 'userid' => $userid]);
+
+         return;
+     }
+
+    /**
+     * Handler for the mod_trainingevent/attendance_changed event
+     *
+     */
+    public static function attendance_changed($event) {
+        global $DB;
+
+        // Delete all of the approval records for this training event.
+        $trainingeventid = $event->objectid;
+        $userid = $event->relateduserid;
+        $choseneventid = $event->other['chosenevent'];
+
+        // Remove the previous request.
+        $DB->delete_records('block_iomad_approve_access', ['activityid'=> $trainingeventid, 'userid' => $userid]);
+
+        // Does the training event even exist?
+        if (!$trainingevent = $DB->get_record('trainingevent', ['id' => $choseneventid])) {
+            return false;
         }
+
+        // Does the new event need approval?
+        if (empty($trainingevent->approvaltype) || $trainingevent->approvaltype == 4) {
+            return;
+        }
+
+        // Has the event passed?
+        if ($trainingevent->startdatetime < time()) {
+            return false;
+        }
+
+        // Does the user exist?
+        if (!$user = $DB->get_record('user', ['id' => $event->relateduserid])) {
+            return false;
+        }
+
+        // Does the course exist?
+        if (!$course = $DB->get_record('course', ['id' => $event->courseid])) {
+            return false;
+        }
+
+        // Does the location exist?
+        if (!$location = $DB->get_record('classroom', ['id' => $trainingevent->classroomid])) {
+            return false;
+        }
+
+        // Is this removal from the waiting list?
+        if (!empty($event->other['waitlisted'])) {
+            return;
+        }
+
+        // Set the company.
+        $company = new company($event->companyid);
+
+        // What type of request is it?
+        $approvaltype = $event->other['approvaltype'];
+        $tm_ok = ($attendancetype == 1) ? 1 : 0;
+        $manager_ok = ($attendancetype == 2) ? 1 : 0;
+        $managertype = empty($tm_ok) ? 2 : 1;
+
+        // Add the time to the location object.
+        $location->time = userdate($trainingevent->startdatetime, $CFG->iomad_date_format . ' %I:%M%p');
+
+        // Create or update the record.
+        if (!$userbooking = $DB->get_record('block_iomad_approve_access', ['activityid' => $trainingevent->id,
+                                                                           'userid' => $user->id])) {
+            $userbooking = (object) ['activityid' => $trainingevent->id,
+                                     'userid' => $user->id,
+                                     'courseid' => $trainingevent->course,
+                                     'tm_ok' => $tm_ok,
+                                     'manager_ok' => $manager_ok,
+                                     'companyid' => $company->id];
+            if (!$userbooking->id = $DB->insert_record('block_iomad_approve_access', $userbooking)) {
+                throw new moodle_exception('error creating attendance record');
+            }
+        } else {
+            $DB->set_field('block_iomad_approve_access', 'tm_ok', $tm_ok, ['id' => $userrecord->id]);
+            $DB->set_field('block_iomad_approve_access', 'manager_ok', $manager_ok, ['id' => $userrecord->id]);
+        }
+
+        // Get the list of managers we need to send an email to.
+        $mymanagers = $company->get_my_managers($user->id, $managertype);
+        foreach ($mymanagers as $mymanager) {
+            if ($manageruser = $DB->get_record('user', array('id' => $mymanager->userid))) {
+                EmailTemplate::send('course_classroom_approval', ['course' => $course,
+                                                                  'user' => $manageruser,
+                                                                  'approveuser' => $user,
+                                                                  'event' => $trainingevent,
+                                                                  'company' => $company,
+                                                                  'classroom' => $location]);
+            }
+        }
+        return;
+    }
+
+    /**
+     * Handler for the mod_trainingevent/attendance_requested event
+     *
+     */
+    public static function attendance_requested($event) {
+        global $DB, $CFG;
+
+        // Does the training event even exist?
+        if (!$trainingevent = $DB->get_record('trainingevent', ['id' => $event->objectid])) {
+            return false;
+        }
+
+        // Has the event passed?
+        if ($trainingevent->startdatetime < time()) {
+            return false;
+        }
+
+        // Does the user exist?
+        if (!$user = $DB->get_record('user', ['id' => $event->relateduserid])) {
+            return false;
+        }
+
+        // Does the course exist?
+        if (!$course = $DB->get_record('course', ['id' => $event->courseid])) {
+            return false;
+        }
+
+        // Does the location exist?
+        if (!$location = $DB->get_record('classroom', ['id' => $trainingevent->classroomid])) {
+            return false;
+        }
+
+        // Is this removal from the waiting list?
+        if (!empty($event->other['waitlisted'])) {
+            return;
+        }
+
+        // Set the company.
+        $company = new company($event->companyid);
+
+        // What type of request is it?
+        $approvaltype = $event->other['approvaltype'];
+        $tm_ok = ($approvaltype == 1) ? 1 : 0;
+        $manager_ok = ($approvaltype == 2) ? 1 : 0;
+        $managertype = empty($tm_ok) ? 2 : 1;
+
+        // Add the time to the location object.
+        $location->time = userdate($trainingevent->startdatetime, $CFG->iomad_date_format . ' %I:%M%p');
+
+        // Create or update the record.
+        if (!$userbooking = $DB->get_record('block_iomad_approve_access', ['activityid' => $trainingevent->id,
+                                                                           'userid' => $user->id])) {
+            $userbooking = (object) ['activityid' => $trainingevent->id,
+                                     'userid' => $user->id,
+                                     'courseid' => $trainingevent->course,
+                                     'tm_ok' => $tm_ok,
+                                     'manager_ok' => $manager_ok,
+                                     'companyid' => $company->id];
+            if (!$userbooking->id = $DB->insert_record('block_iomad_approve_access', $userbooking)) {
+                throw new moodle_exception('error creating attendance record');
+            }
+        } else {
+            $DB->set_field('block_iomad_approve_access', 'tm_ok', $tm_ok, ['id' => $userbooking->id]);
+            $DB->set_field('block_iomad_approve_access', 'manager_ok', $manager_ok, ['id' => $userbooking->id]);
+        }
+
+        // Get the list of managers we need to send an email to.
+        $mymanagers = $company->get_my_managers($user->id, $managertype);
+        foreach ($mymanagers as $mymanager) {
+            if ($manageruser = $DB->get_record('user', array('id' => $mymanager->userid))) {
+                EmailTemplate::send('course_classroom_approval', ['course' => $course,
+                                                                  'user' => $manageruser,
+                                                                  'approveuser' => $user,
+                                                                  'event' => $trainingevent,
+                                                                  'company' => $company,
+                                                                  'classroom' => $location]);
+            }
+        }
+
+        return;
     }
 }

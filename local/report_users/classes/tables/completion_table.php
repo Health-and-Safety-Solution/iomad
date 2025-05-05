@@ -32,6 +32,7 @@ use \completion_info;
 use \iomad;
 use \context_system;
 use \context_course;
+use \context_user;
 
 defined('MOODLE_INTERNAL') || die();
 
@@ -69,7 +70,7 @@ class completion_table extends table_sql {
 
         if ($this->is_downloading() || empty($USER->editing)) {
             if (!empty($row->licenseallocated)) {
-                return format_string(date($CFG->iomad_date_format, $row->licenseallocated) . " (" . $row->licensename . ")");
+                return format_string(userdate($row->licenseallocated, $CFG->iomad_date_format) . " (" . $row->licensename . ")");
             } else {
                 return;
             }
@@ -91,7 +92,7 @@ class completion_table extends table_sql {
 
         if ($this->is_downloading() || empty($USER->editing)) {
             if (!empty($row->timeenrolled)) {
-                return date($CFG->iomad_date_format, $row->timeenrolled);
+                return userdate($row->timeenrolled, $CFG->iomad_date_format);
             } else {
                 return;
             }
@@ -113,7 +114,7 @@ class completion_table extends table_sql {
 
         if ($this->is_downloading() || empty($USER->editing)) {
             if (!empty($row->timecompleted)) {
-                return date($CFG->iomad_date_format, $row->timecompleted);
+                return userdate($row->timecompleted, $CFG->iomad_date_format);
             } else {
                 return;
             }
@@ -137,7 +138,7 @@ class completion_table extends table_sql {
             return get_string('notapplicable', 'local_report_completion');
         } else {
             if (!empty($row->timeexpires)) {
-                return date($CFG->iomad_date_format, $row->timeexpires);
+                return userdate($row->timeexpires, $CFG->iomad_date_format);
             }
         }
     }
@@ -240,17 +241,17 @@ class completion_table extends table_sql {
                             $delaction .= '<a class="btn btn-danger" href="'.$clearlink.'">' . get_string('resetcourse', 'local_report_users') . '</a>';
                         }
                     } else {
-                        if (!empty($row->timecompleted)) {
-                            if (has_capability('local/report_users:clearentries', $companycontext)) {
-                                $delaction .= '<a class="btn btn-danger" href="'.$clearlink.'">' . get_string('clearcourse', 'local_report_users') . '</a>';
-                            }
-                        } else if ($DB->get_record('companylicense_users', array('userid' => $row->userid, 'licensecourseid' => $row->courseid, 'licenseid' => $row->licenseid, 'issuedate' => $row->licenseallocated, 'isusing' => 1))) {
+                        if ($DB->get_record('companylicense_users', array('userid' => $row->userid, 'licensecourseid' => $row->courseid, 'licenseid' => $row->licenseid, 'issuedate' => $row->licenseallocated, 'isusing' => 1))) {
                             if (has_capability('local/report_users:deleteentries', $companycontext)) {
                                 $delaction .= '<a class="btn btn-danger" href="'.$resetlink.'">' . get_string('resetcourse', 'local_report_users') . '</a>';
                             }
                         } else if ($DB->get_record('companylicense_users', array('userid' => $row->userid, 'licensecourseid' => $row->courseid, 'licenseid' => $row->licenseid, 'issuedate' => $row->licenseallocated, 'isusing' => 0))) {
                             if (has_capability('local/report_users:deleteentries', $companycontext)) {
                                 $delaction .= '<a class="btn btn-danger" href="'.$revokelink.'">' . get_string('revokelicense', 'local_report_users') . '</a>';
+                            }
+                        } else {
+                            if (has_capability('local/report_users:clearentries', $companycontext)) {
+                                $delaction .= '<a class="btn btn-danger" href="'.$clearlink.'">' . get_string('clearcourse', 'local_report_users') . '</a>';
                             }
                         }
                     }
@@ -281,12 +282,12 @@ class completion_table extends table_sql {
         if (!empty($row->timecompleted) && $certmodule = $DB->get_record('modules', array('name' => 'iomadcertificate'))) {
             if ($traccertrecs = $DB->get_records('local_iomad_track_certs', array('trackid' => $row->certsource))) {
                 if (empty($USER->editing) || !iomad::has_capability('local/report_users:redocertificates', $companycontext)) {
-                    $coursecontext = context_course::instance($row->courseid);
+                    $usercontext = context_user::instance($row->userid);
                     $returntext = "";
                     foreach ($traccertrecs as $traccertrec) {
                         // create the file download link.
 
-                        $certurl = moodle_url::make_file_url('/pluginfile.php', '/'.$coursecontext->id.'/local_iomad_track/issue/'.$traccertrec->trackid.'/'.$traccertrec->filename);
+                        $certurl = moodle_url::make_file_url('/pluginfile.php', '/'.$usercontext->id.'/local_iomad_track/issue/'.$traccertrec->trackid.'/'.$traccertrec->filename);
                         $returntext .= '<a href="' . $certurl . '" title="' . format_string($traccertrec->filename) .'">
                                         <img src="' . $output->image_url('f/pdf') . '" alt="' . format_string($traccertrec->filename) . '" width="36"></a>&nbsp';
                     }
@@ -339,10 +340,10 @@ class completion_table extends table_sql {
             $criteria = $completion->get_criteria();
             $complete = $completion->is_complete();
             if ($complete) {
-                $completestring = " - " . date($CFG->iomad_date_format, $completion->timecompleted);
+                $completestring = " - " . userdate($completion->timecompleted, $CFG->iomad_date_format);
                 $completed++;
             } else if (!empty($row->timecompleted)) {
-                $completestring = " - " . date($CFG->iomad_date_format, $row->timecompleted);
+                $completestring = " - " . userdate($row->timecompleted, $CFG->iomad_date_format);
                 $completed++;
             } else {
                 $completestring = " - " . get_string('no');
@@ -373,7 +374,7 @@ class completion_table extends table_sql {
         }
 
         // Add in the modified time.
-        $tooltip .= format_string(get_string('lastmodified') . " - " .date($CFG->iomad_date_format, $row->modifiedtime));
+        $tooltip .= format_string(get_string('lastmodified') . " - " .userdate($row->modifiedtime, $CFG->iomad_date_format));
 
         if (!empty($row->timecompleted)) {
             $progress = 100;

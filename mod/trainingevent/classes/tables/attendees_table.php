@@ -45,39 +45,55 @@ class attendees_table extends table_sql {
      * @return string HTML content to go inside the td.
      */
     public function col_fullname($row) {
-        global $id;
+        global $DB, $id, $company, $context;
 
-        $name = fullname($row, has_capability('moodle/site:viewfullnames', context_module::instance($id)));
+        $name = fullname($row, has_capability('moodle/site:viewfullnames', $context));
+
+        // Do we need to add anything else
+        if (empty($row->requirenotes) ||
+            $this->is_downloading()) {
+            return $name;
+        }
+
+        // Set  up the booking notes popup.
+        $tooltip = get_string('bookingnotes', 'mod_trainingevent');
+        if (!empty($row->booking_notes)) {
+            $row->booking_notes = preg_replace('/\s*\R\s*/', ' ', trim($row->booking_notes));
+        }
+
+        // Add the booking notes.
+        $name .= "&nbsp
+                  <a class='btn btn-link p-0'
+                     role='button'
+                     data-container='body'
+                     data-toggle='popover'
+                     data-placement='right'
+                     data-bookingnotesid='" . $row->id ."'
+                     data-content='<div class=\"no-overflow\">
+                                   <b>" . $tooltip . ":</b>
+                                   <br>" . $row->booking_notes .
+                                   "</div> '
+                     data-html='true'
+                     tabindex='0'
+                     data-trigger='focus'>
+                 <i class='icon fa fa-exclamation-circle fa-fw '
+                    title='$tooltip'
+                    role='img'
+                    aria-label='$tooltip'></i>
+                 </a>";
+
         return $name;
     }
 
     /**
-     * Generate the display of the user's| fullname
-     * @param object $user the table row being output.
+     * Generate the display of the user's booking notes as a separate column for CSV download
+     * @param object $row the table row being output.
      * @return string HTML content to go inside the td.
      */
-    public function col_event($row) {
-        global $params, $id, $waitingoption, $event, $eventselect, $OUTPUT;
+    public function col_bookingnotes($row) {
+        global $id, $DB;
 
-        if ($this->is_downloading()) {
-            return format_text($event->name);
-        }
-
-        if (has_capability('mod/trainingevent:add', context_module::instance($id))) {
-            $select = new single_select(new moodle_url('/mod/trainingevent/view.php',
-                                                       ['userid' => $row->id,
-                                                        'id' => $id,
-                                                        'view' => 1,
-                                                        'waiting' => $waitingoption]),
-                                                       'chosenevent',
-                                                       $eventselect,
-                                                       $event->id);
-            $select->formid = 'chooseevent'.$row->id;
-            $select->attributes = ['onchange' => 'this.form.submit()']; 
-            return html_writer::tag('div',
-                                    $OUTPUT->render($select),
-                                    ['id' => 'iomad_event_selector']);
-        }
+        return $row->booking_notes;
     }
 
     /**
@@ -86,29 +102,61 @@ class attendees_table extends table_sql {
      * @return string HTML content to go inside the td.
      */
     public function col_action($row) {
-        global $params, $id, $waitingoption, $event, $eventselect, $OUTPUT, $numattending, $maxcapacity;
+        global $CFG, $company, $id, $waitingoption,
+               $numattending, $maxcapacity;
 
         $actionhtml = "";
         if ($this->is_downloading()) {
             return;
         }
         if (has_capability('mod/trainingevent:add', context_module::instance($id))) {
+            // Are we vieing the list on people on the waiting list?
             if ($waitingoption && $numattending < $maxcapacity) {
-                $actionhtml = $OUTPUT->single_button(new moodle_url('view.php',
-                                                                     array('userid' => $row->id,
-                                                                           'id' => $id,
-                                                                           'action' => 'add',
-                                                                        'view' => 1 )),
-                                                                     get_string("add"));
-                $actionhtml .= "&nbsp";
+                $addurl = new moodle_url($CFG->wwwroot ."/mod/trainingevent/view.php",
+                                         ['userid' => $row->id,
+                                          'id' => $id,
+                                          'action' => 'add',
+                                          'view' => 1]);
+                $actionhtml .= "<a class='btn btn-link p-0'
+                                   role='button'
+                                   href='" . $addurl->out() ."'>
+                                  <i class='icon fa fa-plus fa-fw '
+                                     title='" . get_string('add') . "'
+                                     role='img'>
+                                  </i>
+                               </a>&nbsp";
             }
-            $actionhtml .= $OUTPUT->single_button(new moodle_url('view.php',
-                                                                  ['userid' => $row->id,
-                                                                   'id' => $id,
-                                                                   'action' => 'delete',
-                                                                   'view' => 1,
-                                                                   'waiting' => $waitingoption]),
-                                                                  get_string("remove", 'trainingevent'));
+
+            // Add the edit handler.
+            $updatetitle = get_string('updateattendance', 'trainingevent');
+            if (!empty($row->waitlisted)) {
+                $updatetitle = get_string('updatewaitlist', 'trainingevent');
+            }
+
+            // If we are already approved then we don't need any further.
+            if (!empty($row->approved)) {
+                $row->approvaltype = 0;
+            }
+
+            $actionhtml .= "<a class='btn btn-link p-0'
+                               role='button'
+                               data-action='show-Attendanceform'
+                               data-companyid=" . $company->id ."
+                               data-trainingeventid='" . $row->trainingeventid . "'
+                               data-cmid='" . $id . "'
+                               data-waitlisted='" . $row->waitlisted . "'
+                               data-attendanceid='" . $row->attendanceid . "'
+                               data-approvaltype='" . $row->approvaltype . "'
+                               data-userid='" . $row->id . "'
+                               data-courseid='" . $row->courseid . "'
+                               data-requesttype='0'
+                               data-dorefresh='0'
+                               href='#'>
+                              <i class='icon fa fa-cog fa-fw '
+                                 title='$updatetitle'
+                                 role='img'>
+                              </i>
+                           </a>";
 
         }
         return $actionhtml;
@@ -120,10 +168,10 @@ class attendees_table extends table_sql {
      * @return string HTML content to go inside the td.
      */
     public function col_grade($row) {
-        global $params, $id, $waitingoption, $event, $eventselect, $OUTPUT, $numattending, $maxcapacity;
+        global $params, $id, $waitingoption, $trainingevent, $eventselect, $OUTPUT, $numattending, $maxcapacity;
 
         $gradehtml = "";
-        $usergradeentry = grade_get_grades($event->course, 'mod', 'trainingevent', $event->id, $row->id);
+        $usergradeentry = grade_get_grades($trainingevent->course, 'mod', 'trainingevent', $trainingevent->id, $row->id);
 
         if ($this->is_downloading()) {
             return $usergradeentry->items[0]->grades[$row->id]->str_grade;
@@ -134,9 +182,18 @@ class attendees_table extends table_sql {
                          <input type="hidden" name="usergradeusers[]" value="'.$row->id.'" />
                          <input type="hidden" name="action" value="grade" />
                          <input type="hidden" name="view" value="1" />
-                         <input type="text" name="usergrades[]" id="id_usergrade"
+                         <div class="col-md-9 form-inline align-items-start felement" data-fieldtype="text">
+                         <input type="text"
+                                size="4"
+                                style="display: inline;"
+                                class="form-control"
+                                name="usergrades[]"
+                                id="id_usergrade' . $row->id .'"
                                 value="'.$usergradeentry->items[0]->grades[$row->id]->str_grade.'" />
-                         <input type="submit" value="' . get_string('grade', 'grades') . '" />';
+                         </div>
+                         <input type="submit"
+                                class="btn btn-secondary"
+                                value="' . get_string('grade', 'grades') . '" />';
 
         }
 
@@ -184,7 +241,7 @@ class attendees_table extends table_sql {
         global $params, $id, $waitingoption;
 
         if (has_capability('mod/trainingevent:grade', context_module::instance($id)) && $waitingoption == 0) {
-            echo '<form action="view.php" method="get">';
+            echo '<form action="view.php" class="mform" method="get">';
         }
     }
 
@@ -192,7 +249,7 @@ class attendees_table extends table_sql {
         global $params, $id, $waitingoption;
 
         if (has_capability('mod/trainingevent:grade', context_module::instance($id)) && $waitingoption == 0) {
-            echo '<br><input type="submit" value="' . get_string('grade', 'grades') . '" />
+            echo '<br><input type="submit" class="btn btn-secondary" value="' . get_string('grade', 'grades') . '" />
                   </form>';
         }
     }

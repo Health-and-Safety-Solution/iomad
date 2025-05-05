@@ -70,24 +70,32 @@ if ($email) {
 $params['deptid'] = $departmentid;
 $params['eventid'] = $eventid;
 
-if (!$event = $DB->get_record('trainingevent', array('id' => $eventid))) {
+if (!$trainingevent = $DB->get_record('trainingevent', array('id' => $eventid))) {
     throw new moodle_exception('invalid event ID');
 }
-
-require_login($event->course); // Adds to $PAGE, creates $output.
 
 $systemcontext = context_system::instance();
 $companyid = iomad::get_my_companyid($systemcontext);
 $companycontext = \core\context\company::instance($companyid);
-if (!$cm = get_coursemodule_from_instance('trainingevent', $event->id, $event->course)) {
+
+if (!$cm = get_coursemodule_from_instance('trainingevent', $trainingevent->id, $trainingevent->course)) {
     throw new moodle_exception('invalid coursemodule ID');
 }
 
+if (! $course = $DB->get_record("course", ["id" => $cm->course])) {
+    throw new moodle_exception('coursemisconf');
+}
+
+// Other defaults.
+$id = $cm->id;
+$waitingoption = 0;
+
 // Page stuff.
-$url = new moodle_url('/course/view.php', array('id' => $event->course));
-$context = context_course::instance($event->course);
+$url = new moodle_url('/course/view.php', array('id' => $trainingevent->course));
+$context = context_course::instance($trainingevent->course);
+require_course_login($trainingevent->course, false, $cm); // Adds to $PAGE, creates $output.
 $PAGE->set_url($url);
-$PAGE->set_title($event->name);
+$PAGE->set_title($trainingevent->name);
 $baseurl  = new moodle_url('searchusers.php', array('eventid' => $eventid));
 
 // get output renderer
@@ -97,18 +105,66 @@ $output = $PAGE->get_renderer('block_iomad_company_admin');
 // Parameter is name of proper select form element followed by 1=submit its form
 $PAGE->requires->js_call_amd('block_iomad_company_admin/department_select', 'init', array('deptid', 1, optional_param('deptid', 0, PARAM_INT)));
 
+//Define buttons variable to store all the html for the control buttons
+$buttons = null;
+if (has_capability('mod/trainingevent:invite', $context)) {
+    $publishparams = ['id' => $id,
+                      'publish' => 1];
+
+    if ($DB->get_record('event', ['courseid' => $course->id,
+                                  'eventtype' => 'trainingevent',
+                                  'modulename' => 'trainingevent',
+                                  'instance' => $trainingevent->id])) {
+        $publishparams['remove'] = true;
+        $publishstring = get_string('unpublish', 'trainingevent');
+    } else {
+        $publishstring = get_string('publish', 'trainingevent');
+    }
+    $buttons .= $OUTPUT->single_button(new moodle_url($CFG->wwwroot . '/mod/trainingevent/view.php',
+                                        $publishparams),
+                                        $publishstring);
+}
+if (has_capability('mod/trainingevent:viewattendees', $context)) {
+    $buttons .= $OUTPUT->single_button(new moodle_url($CFG->wwwroot . '/mod/trainingevent/view.php',
+                                        ['id' => $id,
+                                         'view' => 1]),
+                                        get_string('viewattendees', 'trainingevent'));
+}
+if (has_capability('mod/trainingevent:viewattendees', $context) && !empty($trainingevent->haswaitinglist)) {
+    $buttons .= $OUTPUT->single_button(new moodle_url($CFG->wwwroot . '/mod/trainingevent/view.php',
+                                        ['id' => $id,
+                                         'view' => 1,
+                                         'waiting' => 1]),
+                                        get_string('viewwaitlist', 'trainingevent'));
+}
+if (has_capability('mod/trainingevent:addoverride', $context) ||
+    (has_capability('mod/trainingevent:add', $context) &&
+     $numattending < $maxcapacity &&
+     time() < $trainingevent->startdatetime)) {
+    $buttons .= $OUTPUT->single_button(new moodle_url("/mod/trainingevent/searchusers.php",
+                                        ['eventid' => $trainingevent->id]),
+                                        get_string('selectother', 'trainingevent'));
+}
+if (!$waitingoption && has_capability('mod/trainingevent:resetattendees', $context)) {
+    $buttons .= $OUTPUT->single_button(new moodle_url($CFG->wwwroot . "/mod/trainingevent/view.php",
+                                                    ['id' => $id,
+                                                    'action' => 'reset']),
+                                        get_string('resetattending', 'trainingevent'));
+}
+$PAGE->set_button($buttons);
+
 echo $output->header();
 
 // Get the location information.
-$location = $DB->get_record('classroom', array('id' => $event->classroomid));
+$location = $DB->get_record('classroom', array('id' => $trainingevent->classroomid));
 
 // Set the capacity for the event if it doesn't already exist.
-if (empty($event->coursecapacity)) {
-    $event->coursecapacity = $location->capacity;
+if (empty($trainingevent->coursecapacity)) {
+    $trainingevent->coursecapacity = $location->capacity;
 }
 
 // How many are already attending?
-$attending = $DB->count_records('trainingevent_users', array('trainingeventid' => $event->id, 'waitlisted' => 0));
+$attending = $DB->count_records('trainingevent_users', array('trainingeventid' => $trainingevent->id, 'waitlisted' => 0));
 
 // Get the associated department id.
 $company = new company($location->companyid);
@@ -229,7 +285,7 @@ foreach ($columns as $column) {
 // Get all or company users depending on capability.
 
 // Check if has capability to view all attendees.
-$coursecontext = context_course::instance($event->course);
+$coursecontext = context_course::instance($trainingevent->course);
 if (!has_capability('mod/trainingevent:viewallattendees', $coursecontext)) {
 	 // Get department users.
     $departmentusers = company::get_recursive_department_users($departmentid);
@@ -266,7 +322,7 @@ if (!empty($params['email'])) {
     $sqlsearch .= "email like '%".$params['email']."%' AND ";
 }
 // Deal with users already assigned..
-if ($assignedusers = $DB->get_records('trainingevent_users', array('trainingeventid' => $event->id, 'waitlisted' => 0), null, 'userid')) {
+if ($assignedusers = $DB->get_records('trainingevent_users', array('trainingeventid' => $trainingevent->id, 'waitlisted' => 0), null, 'userid')) {
     $sqlsearch .= "id not in (".implode(',', array_keys($assignedusers)).") AND ";
 }
 
@@ -274,14 +330,14 @@ if ($assignedusers = $DB->get_records('trainingevent_users', array('trainingeven
 $sqlsearch .= "id IN (SELECT u.id FROM {user} u
                            JOIN (SELECT DISTINCT eu2_u.id FROM {user} eu2_u
                                  JOIN {user_enrolments} eu2_ue ON eu2_ue.userid = eu2_u.id
-                                 JOIN {enrol} eu2_e ON (eu2_e.id = eu2_ue.enrolid AND eu2_e.courseid = " . $event->course . ")
+                                 JOIN {enrol} eu2_e ON (eu2_e.id = eu2_ue.enrolid AND eu2_e.courseid = " . $trainingevent->course . ")
                                  WHERE eu2_u.deleted = 0
                                  AND eu2_ue.status = 0
                                  AND eu2_e.status = 0
                                  AND eu2_ue.timestart < " . time() . "
                                  AND (eu2_ue.timeend = 0 OR eu2_ue.timeend > " . time() . ")) e
                            ON e.id = u.id
-                           LEFT JOIN {user_lastaccess} ul ON (ul.userid = u.id AND ul.courseid = " . $event->course . ")
+                           LEFT JOIN {user_lastaccess} ul ON (ul.userid = u.id AND ul.courseid = " . $trainingevent->course . ")
                            LEFT JOIN {context} ctx ON (ctx.instanceid = u.id AND ctx.contextlevel = " . $context->id ."))";
 
 // Get the user records.
@@ -365,10 +421,10 @@ if (!$users) {
             continue; // Do not dispaly dummy new user and guest here.
         }
 
-        if (has_capability('mod/trainingevent:add', $context) && ($location->isvirtual || $attending < $event->coursecapacity)) {
+        if (has_capability('mod/trainingevent:add', $context) && ($location->isvirtual || $attending < $trainingevent->coursecapacity)) {
             $enrolmentbutton = $output->single_button(new moodle_url("/mod/trainingevent/view.php",
                                                                       array('id' => $cm->id,
-                                                                            'chosenevent' => $event->id,
+                                                                            'chosenevent' => $trainingevent->id,
                                                                             'userid' => $user->id,
                                                                             'view' => 1,
                                                                             'action' => 'add')),

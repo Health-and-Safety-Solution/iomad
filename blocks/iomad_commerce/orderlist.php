@@ -114,7 +114,7 @@ $table->define_headers($headers);
 $table->no_sorting('actions');
 $table->no_sorting('paymentprovider');
 $table->sort_default_column = 'date DESC';
-$table->is_downloading($download, format_string($company->get('name')) . ' invoices ' . format_string(date($CFG->iomad_date_format, time())), 'companyinvoices');
+$table->is_downloading($download, format_string($company->get('name')) . ' invoices ' . format_string(userdate(time(), $CFG->iomad_date_format)), 'companyinvoices');
 
 if (!$table->is_downloading()) {
     echo $OUTPUT->header();

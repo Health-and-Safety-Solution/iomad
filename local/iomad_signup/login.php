@@ -26,9 +26,15 @@ require('../../config.php');
 require_once($CFG->dirroot . '/login/lib.php');
 $wantedcompanyid = optional_param('id', 0, PARAM_INT);
 $wantedcompanyshort = optional_param('code', '', PARAM_CLEAN);
+$wantsurl = optional_param('wantsurl', '', PARAM_RAW);
 
 // This page should no longer be used. Grab company parameters and redirect to core login page.
-$redirecturl = new moodle_url($CFG->wwwroot . '/login/index.php', ['id' => $wantedcompanyid, 'code' => $wantedcompanyshort]);
+$params = ['id' => $wantedcompanyid,
+           'code' => $wantedcompanyshort];
+if (!empty($wantsurl)) {
+    $params['wantsurl'] = $wantsurl;
+}
+$redirecturl = new moodle_url($CFG->wwwroot . '/login/index.php', $params);
 redirect($redirecturl);
 
 die;

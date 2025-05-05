@@ -229,5 +229,80 @@ function xmldb_trainingevent_upgrade($oldversion) {
         upgrade_mod_savepoint(true, 2024083000, 'trainingevent');
     }
 
+    if ($oldversion < 2025010600) {
+
+        // Define field booking_notes to be added to trainingevent_users.
+        $table = new xmldb_table('trainingevent_users');
+        $field = new xmldb_field('booking_notes', XMLDB_TYPE_TEXT, null, null, null, null, null, 'userid');
+
+        // Conditionally launch add field booking_notes.
+        if (!$dbman->field_exists($table, $field)) {
+            $dbman->add_field($table, $field);
+        }
+
+        // Define field booking_notes_format to be added to trainingevent_users.
+        $table = new xmldb_table('trainingevent_users');
+        $field = new xmldb_field('booking_notes_format', XMLDB_TYPE_INTEGER, '4', null, null, null, '0', 'booking_notes');
+
+        // Conditionally launch add field booking_notes_format.
+        if (!$dbman->field_exists($table, $field)) {
+            $dbman->add_field($table, $field);
+        }
+
+        // Trainingevent savepoint reached.
+        upgrade_mod_savepoint(true, 2025010600, 'trainingevent');
+    }
+
+    if ($oldversion < 2025011000) {
+
+        // Define field approved to be added to trainingevent_users.
+        $table = new xmldb_table('trainingevent_users');
+        $field = new xmldb_field('approved', XMLDB_TYPE_INTEGER, '1', null, null, null, '0', 'waitlisted');
+
+        // Conditionally launch add field approved.
+        if (!$dbman->field_exists($table, $field)) {
+            $dbman->add_field($table, $field);
+        }
+
+        // Define field booking_notes_format to be dropped from trainingevent_users.
+        $table = new xmldb_table('trainingevent_users');
+        $field = new xmldb_field('booking_notes_format');
+
+        // Conditionally launch drop field booking_notes_format.
+        if ($dbman->field_exists($table, $field)) {
+            $dbman->drop_field($table, $field);
+        }
+
+        // Mark all current records for the training events users as approved.
+        $DB->set_field('trainingevent_users', 'approved', 1);
+
+        // Trainingevent savepoint reached.
+        upgrade_mod_savepoint(true, 2025011000, 'trainingevent');
+    }
+
+    if ($oldversion < 2025012300) {
+
+        // Define field requirenotes to be added to trainingevent.
+        $table = new xmldb_table('trainingevent');
+        $field = new xmldb_field('requirenotes', XMLDB_TYPE_INTEGER, '1', null, XMLDB_NOTNULL, null, '1', 'remindersent');
+
+        // Conditionally launch add field requirenotes.
+        if (!$dbman->field_exists($table, $field)) {
+            $dbman->add_field($table, $field);
+        }
+
+        // Define field booking_notes_default to be added to trainingevent.
+        $table = new xmldb_table('trainingevent');
+        $field = new xmldb_field('booking_notes_default', XMLDB_TYPE_TEXT, null, null, null, null, null, 'requirenotes');
+
+        // Conditionally launch add field booking_notes_default.
+        if (!$dbman->field_exists($table, $field)) {
+            $dbman->add_field($table, $field);
+        }
+
+        // Trainingevent savepoint reached.
+        upgrade_mod_savepoint(true, 2025012300, 'trainingevent');
+    }
+
     return $result;
 }

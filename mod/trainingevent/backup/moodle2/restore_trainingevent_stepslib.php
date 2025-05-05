@@ -44,9 +44,6 @@ class restore_trainingevent_activity_structure_step extends restore_activity_str
 
         $data = (object)$data;
         $oldid = $data->id;
-echo "DATA = <pre>";
-print_r($data);
-echo "</pre><br>";
         $newtrainingevent = array('course' => $this->get_courseid(),
                                   'name' => $data->name,
                                   'intro' => $data->intro,

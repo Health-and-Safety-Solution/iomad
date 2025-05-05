@@ -666,6 +666,7 @@ $usercount = $DB->count_records_sql($countsql, $sqlparams);
 echo $output->heading(get_string('totalusers', 'block_iomad_company_admin', $usercount));
 
 // Actually create and display the table.
+$baseurl->remove_params(['page']);
 $table = new \block_iomad_company_admin\tables\editusers_table('block_iomad_company_admin_editusers_table');
 $table->set_sql($selectsql, $fromsql, $wheresql, $sqlparams);
 $table->set_count_sql($countsql, $sqlparams);
@@ -676,6 +677,14 @@ $table->no_sorting('actions');
 $table->sort_default_column = 'fullname DESC';
 
 $table->out($CFG->iomad_max_list_users, true);
+
+// Set up the add new user button
+if (iomad::has_capability('block/iomad_company_admin:user_create', $companycontext)) {
+    // Add the button to add a user.
+    echo $output->single_button(new moodle_url($CFG->wwwroot . '/blocks/iomad_company_admin/company_user_create_form.php'),
+                                               get_string('createuser', 'block_iomad_company_admin'));
+}
+
 
 // Finish the display
 echo $output->footer();

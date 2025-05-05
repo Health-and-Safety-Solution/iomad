@@ -132,6 +132,7 @@ class manager_expiring_digest_task extends \core\task\scheduled_task {
                                         AND u.deleted = 0
                                         AND u.suspended = 0
                                         AND lit.companyid = :companyid
+                                        $companyusql
                                         $expirysql
                                         AND lit.userid IN (" . $departmentids . ")
                                         AND lit.timeexpires < (:runtime + 604800)
@@ -164,8 +165,8 @@ class manager_expiring_digest_task extends \core\task\scheduled_task {
                             continue;
                         }
 
-                        $completddate = date($CFG->iomad_date_format, $manageruser->timecompleted) . "\n";
-                        $expiresdate = date($CFG->iomad_date_format, $manageruser->timeexpires) . "\n";
+                        $completddate = userdate($manageruser->timecompleted, $CFG->iomad_date_format) . "\n";
+                        $expiresdate = userdate($manageruser->timeexpires, $CFG->iomad_date_format) . "\n";
                         $foundusers = true;
 
                         // Get the user's departments.

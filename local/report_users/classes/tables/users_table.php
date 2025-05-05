@@ -65,7 +65,7 @@ class users_table extends table_sql {
         global $CFG;
 
         if (!empty($row->created)) {
-            return date($CFG->iomad_date_format, $row->created);
+            return userdate($row->created, $CFG->iomad_date_format);
         } else {
             return;
         }
@@ -80,7 +80,7 @@ class users_table extends table_sql {
         global $CFG;
 
         if (!empty($row->lastaccess)) {
-            return date($CFG->iomad_date_format, $row->lastaccess);
+            return userdate($row->lastaccess, $CFG->iomad_date_format);
         } else {
             return get_string('never');
         }
@@ -95,7 +95,7 @@ class users_table extends table_sql {
         global $CFG;
 
         if (!empty($row->timecompleted)) {
-            return date($CFG->iomad_date_format, $row->timecompleted);
+            return userdate($row->timecompleted, $CFG->iomad_date_format);
         } else {
             return;
         }
@@ -112,7 +112,7 @@ class users_table extends table_sql {
         if (!empty($row->timeexpires)) {
             if ($icourserec = $DB->get_record_sql("SELECT * FROM {iomad_courses} WHERE courseid =: courseid AND expireafter !=0", array('courseid' => $row->courseid))) {
                 $expiredate = $row->timecompleted + $icourserec->timeexpires * 24 * 60 * 60;
-                return date($CFG->iomad_date_format, $expiredate);
+                return userdate($expiredate, $CFG->iomad_date_format);
             } else {
                 return;
             }

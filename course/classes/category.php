@@ -264,7 +264,6 @@ class core_course_category implements renderable, cacheable_object, IteratorAggr
         // IOMAD - dont show categories which a user can't see.
         $companycategories = iomad::iomad_filter_categories([$id => $id]);
         if (empty($companycategories)) {
-            throw new moodle_exception('unknowncategory');
             return null;
         }
 
@@ -1189,31 +1188,11 @@ class core_course_category implements renderable, cacheable_object, IteratorAggr
             $fields[] = $DB->sql_substr('c.summary', 1, 1). ' as hassummary';
         }
 
-        // IOMAD - Remove courses which don't belong to your company
-        // and add in shared courses.
-        // If unit testing we generally don't know about companies
-        if (!is_siteadmin() && !PHPUNIT_TEST) {
-            if (!isloggedin()) {
-                $whereclause .= " AND c.id NOT IN (SELECT courseid FROM {company_course})";
-            } else {
-                $whereclause .= " AND (
-                                   c.id IN (
-                                    SELECT courseid FROM {company_course}
-                                    WHERE companyid = :companyid
-                                   ) OR c.id IN (
-                                    SELECT courseid FROM {iomad_courses}
-                                    WHERE shared = 1
-                                   )
-                                  )";
-                $companyid = iomad::get_my_companyid(context_system::instance());
-                $params['companyid'] = $companyid;
-            }
-        }
-
         $sql = "SELECT ". join(',', $fields). ", $ctxselect
                 FROM {course} c
                 JOIN {context} ctx ON c.id = ctx.instanceid AND ctx.contextlevel = :contextcourse
-                WHERE ". $whereclause." ORDER BY c.sortorder";
+                WHERE $whereclause
+                ORDER BY c.sortorder";
         $list = $DB->get_records_sql($sql,
                 array('contextcourse' => CONTEXT_COURSE) + $params);
 
@@ -1667,6 +1646,11 @@ class core_course_category implements renderable, cacheable_object, IteratorAggr
                 }
             }
 
+            // IOMAD - Filter the result.
+            if (!PHPUNIT_TEST) {
+                $courses = iomad::iomad_filter_courses($courses);
+            }
+
             return $courses;
         }
 
@@ -1707,8 +1691,13 @@ class core_course_category implements renderable, cacheable_object, IteratorAggr
                 $params = array('blockname' => $blockname);
             } else if (!empty($search['modulelist'])) {
                 // Search courses that have module with specified name.
-                $where = "c.id IN (SELECT DISTINCT module.course ".
-                        "FROM {".$search['modulelist']."} module)";
+                if (array_key_exists($search['modulelist'], core_component::get_plugin_list('mod'))) {
+                    // If module plugin exists, use module name as table name.
+                    $where = "c.id IN (SELECT DISTINCT module.course FROM {{$search['modulelist']}} module)";
+                } else {
+                    // Otherwise, return empty list of courses.
+                    $where = '1=0';
+                }
                 $params = array();
             } else if (!empty($search['tagid'])) {
                 // Search courses that are tagged with the specified tag.
@@ -1750,12 +1739,6 @@ class core_course_category implements renderable, cacheable_object, IteratorAggr
                 }
             }
             self::sort_records($courselist, $sortfields);
-
-            // IOMAD: strip out courses user shouldn't see.
-            if (!PHPUNIT_TEST) {
-                $courselist = iomad::iomad_filter_courses($courselist);
-            }
-
             $coursecatcache->set($cachekey, array_keys($courselist));
             $coursecatcache->set($cntcachekey, count($courselist));
             $records = array_slice($courselist, $offset, $limit, true);
@@ -1778,6 +1761,11 @@ class core_course_category implements renderable, cacheable_object, IteratorAggr
         $courses = array();
         foreach ($records as $record) {
             $courses[$record->id] = new core_course_list_element($record);
+        }
+
+        // IOMAD - Filter the result.
+        if (!PHPUNIT_TEST) {
+            $courses = iomad::iomad_filter_courses($courses);
         }
 
         return $courses;
@@ -1807,6 +1795,12 @@ class core_course_category implements renderable, cacheable_object, IteratorAggr
             unset($options['coursecontacts']);
             $options['idonly'] = true;
             $courses = self::search_courses($search, $options, $requiredcapabilities);
+
+            // IOMAD - Filter the result.
+            if (!PHPUNIT_TEST) {
+                $courses = iomad::iomad_filter_courses($courses);
+            }
+
             $cnt = count($courses);
         }
         return $cnt;
@@ -1889,15 +1883,18 @@ class core_course_category implements renderable, cacheable_object, IteratorAggr
                 }
                 // Prepare the list of core_course_list_element objects.
                 foreach ($ids as $id) {
-
-                    //IOMAD strip out unwanted courses.
-
                     // If a course is deleted after we got the cache entry it may not exist in the database anymore.
                     if (!empty($records[$id])) {
                         $courses[$id] = new core_course_list_element($records[$id]);
                     }
                 }
             }
+
+            // IOMAD - Filter the result.
+            if (!PHPUNIT_TEST) {
+                $courses = iomad::iomad_filter_courses($courses);
+            }
+
             return $courses;
         }
 
@@ -1945,6 +1942,12 @@ class core_course_category implements renderable, cacheable_object, IteratorAggr
                 $courses[$record->id] = new core_course_list_element($record);
             }
         }
+
+        // IOMAD - Filter the result.
+        if (!PHPUNIT_TEST) {
+            $courses = iomad::iomad_filter_courses($courses);
+        }
+
         return $courses;
     }
 

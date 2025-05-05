@@ -91,7 +91,7 @@ class emails_table extends table_sql {
     public function col_created($row) {
         global $CFG;
 
-        return date($CFG->iomad_date_format. " H:i:s", $row->created);
+        return userdate($row->created, $CFG->iomad_date_format . " %I:%M%p");
     }
 
     /**
@@ -102,7 +102,7 @@ class emails_table extends table_sql {
     public function col_due($row) {
         global $CFG;
 
-        return date($CFG->iomad_date_format. " H:i:s", $row->due);
+        return userdate($row->due, $CFG->iomad_date_format . " %I:%M%p");
     }
 
     /**
@@ -116,7 +116,7 @@ class emails_table extends table_sql {
         if (empty($row->sent)) {
             return get_string('never');
         } else {
-            return date($CFG->iomad_date_format. " H:i:s", $row->sent);
+            return userdate($row->sent, $CFG->iomad_date_format . " %I:%M%p");
         }
     }
 

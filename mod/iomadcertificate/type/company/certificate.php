@@ -28,7 +28,7 @@ if (!defined('MOODLE_INTERNAL')) {
 
 $pdf = new PDF($iomadcertificate->orientation, 'mm', 'A4', true, 'UTF-8', false);
 
-$pdf->SetTitle($iomadcertificate->name);
+$pdf->SetTitle(format_string($iomadcertificate->name, true));
 $pdf->SetProtection(array('modify'));
 $pdf->setPrintHeader(false);
 $pdf->setPrintFooter(false);
@@ -87,7 +87,7 @@ $showgrade = $iomadcertificate->printgrade;
 $uselogo = true;
 $usesignature = true;
 $useborder = true;
-$usewaterkark = true;
+$usewatermark = true;
 
 // Get the site defaults
 $sitecontext = context_system::instance();
@@ -246,7 +246,7 @@ $pdf->SetTextColor(0, 0, 0);
 iomadcertificate_print_text($pdf, $x, $y + 20, $alignment, 'freeserif', '', 20, get_string('companycertify', 'iomadcertificate'));
 iomadcertificate_print_text($pdf, $x, $y + 34, $alignment, 'freeserif', '', 30, fullname($certuser));
 iomadcertificate_print_text($pdf, $x, $y + 53, $alignment, 'freeserif', '', 20, get_string('companydetails', 'iomadcertificate'));
-iomadcertificate_print_text($pdf, $x, $y + 68, $alignment, 'freeserif', '', 20, $course->fullname);
+iomadcertificate_print_text($pdf, $x, $y + 68, $alignment, 'freeserif', '', 20, format_string($course->fullname, true));
 iomadcertificate_print_text($pdf, $x, $y + 86, $alignment, 'freeserif', '', 14, $dategradestring);
 iomadcertificate_print_text($pdf, $x, $codey, 'C', 'freeserif', '', 10, iomadcertificate_get_code($iomadcertificate, $certrecord));
 iomadcertificate_print_text($pdf, $custx, $custy, $alignment, null, null, null, $iomadcertificate->customtext);

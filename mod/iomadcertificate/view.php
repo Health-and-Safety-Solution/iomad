@@ -128,10 +128,6 @@ if (empty($action)) { // Not displaying PDF
         echo html_writer::tag('div', $url, array('class' => 'reportlink'));
     }
 
-    if (!empty($iomadcertificate->intro)) {
-        echo $OUTPUT->box(format_module_intro('iomadcertificate', $iomadcertificate, $cm->id), 'generalbox', 'intro');
-    }
-
     if ($attempts = iomadcertificate_get_attempts($iomadcertificate->id)) {
         echo iomadcertificate_print_attempts($course, $iomadcertificate, $attempts);
     }

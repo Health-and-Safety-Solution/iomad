@@ -75,6 +75,7 @@ $string['missingtemplatesetname'] = 'Please enter a template set name';
 $string['monthly'] = 'Monthly';
 $string['override'] = 'override';
 $string['pluginname'] = 'Local: Email';
+$string['refreshlangpacks'] = 'Import lang pack string to tool_customlang';
 $string['replyto'] = 'Reply to';
 $string['replytoother'] = 'Manual Reply to';
 $string['resettemplatefull'] = 'Do you want to reset the template for {$a} back to the default settings and language strings?';
@@ -96,6 +97,7 @@ $string['templateresetok'] = 'Template for {$a} has been reset successfully.';
 $string['templatesetsetdefault'] = 'The default company template set has been updated.';
 $string['templatesetdeleted'] = 'Template set deleted successfully.';
 $string['templatesetname'] = 'Template set name';
+$string['templatesetnamealreadyinuse'] = 'This template set name already exists';
 $string['templatesetname_help'] = 'This is the name by which the template set will be referenced.';
 $string['templatesnoaccessigble'] = '<h4>The email templates are not currently accessible</h4><p>This is due to an adhoc migration task which is being run against them. Emails will still be sent out from the system as normal and access to the templates will return once the task has completed.</p>';
 $string['templatetype'] = 'Template type';
@@ -477,7 +479,7 @@ $string['user_deleted_body'] = '<p>Hello {User_FirstName} {User_LastName},</p>
 <p>If you feel that this is in error, please contact your manager.</p>
 <p>Your email: {User_Email}</p>';
 $string['admin_deleted_subject'] = 'Account has been demoted';
-$string['admin_deleted_body'] = '<p>Hello {User_Firstname} {User_Lastname},</p>
+$string['admin_deleted_body'] = '<p>Hello {User_FirstName} {User_LastName},</p>
 <p>Your admin privileges have been revoked on {SiteURL}. You no longer have access to manage your company.</p>
 <p>Your email: {User_Email}</p>
 <p>If you feel that this is in error, please contact your manager.</p>';

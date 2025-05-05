@@ -109,7 +109,7 @@ if ($data = $callform->get_data()) {
                 }
 
                 // Get the number of current attendees.
-                $numattendees = $DB->count_records('trainingevent_users', array('trainingeventid' => $event->id, 'waitlisted' => 0));
+                $numattendees = $DB->count_records('trainingevent_users', array('trainingeventid' => $event->id, 'waitlisted' => 0, 'approved' => 1));
 
                 // Is the event full?
                 if ($numattendees > $maxcapacity && $dataresult == 1) {
@@ -147,7 +147,7 @@ if ($data = $callform->get_data()) {
                             $mymanagers = $company->get_my_managers($result->userid, 1);
                             $eventuser = $DB->get_record('user', array('id' => $result->userid));
                             $location = $DB->get_record('classroom', array('id' => $event->classroomid));
-                            $location->time = date($CFG->iomad_date_format . ' \a\t h:i', $event->startdatetime);
+                            $location->time = userdate($event->startdatetime, $CFG->iomad_date_format . " %I:%M%p");
 
                             // Send the emails.
                             foreach ($mymanagers as $mymanager) {
@@ -225,7 +225,7 @@ if ($data = $callform->get_data()) {
                             if (!empty($mymanagers)) {
                                 $eventuser = $DB->get_record('user', array('id' => $result->userid));
                                 $location = $DB->get_record('classroom', array('id' => $event->classroomid));
-                                $location->time = date($CFG->iomad_date_format . ' \a\t h:i', $event->startdatetime);
+                                $location->time = userdate($event->startdatetime, $CFG->iomad_date_format . " %I:%M%p");
 
                                 // Send the emails.
                                 foreach ($mymanagers as $mymanager) {
@@ -266,7 +266,7 @@ if ($data = $callform->get_data()) {
                 $DB->update_record('block_iomad_approve_access', $result, $bulk = false);
                 if ($sendemail || $senddenied) {
                     $location = $DB->get_record('classroom', array('id' => $event->classroomid));
-                    $location->time = date($CFG->iomad_date_format . ' \a\t h:i', $event->startdatetime);
+                    $location->time = userdate($event->startdatetime, $CFG->iomad_date_format . " %I:%M%p");
                     $approveuser = $DB->get_record('user', array('id' => $result->userid));
                     $approvecourse = $DB->get_record('course', array('id' => $result->courseid));
                     if ($sendemail) {
@@ -281,7 +281,7 @@ if ($data = $callform->get_data()) {
                         if ($location->isvirtual || $attending < $maxcapacity) {
                            $waitlisted = 0;
                         
-                        } else if ($event->haswaitlist) {
+                        } else if ($event->haswaitinglist) {
                             $waitlisted = 1;
                         } else {
                             $cancontinue = false;
@@ -309,7 +309,7 @@ if ($data = $callform->get_data()) {
                                 $usergroups = groups_get_user_groups($approvecourse->id, $approveuser->id);
                                 $userteachers = [];
                                 foreach ($usergroups as $usergroup => $junk) {
-                                    $userteachers = $userteachers + get_enrolled_users(context_module::instance($cmidinfo->id), 'mod/trainingevent:viewattendees', $usergroup);
+                                    $userteachers = $userteachers + get_enrolled_users(context_course::instance($approvecourse->id), 'mod/trainingevent:viewattendees', $usergroup);
                                 } 
                                 foreach ($userteachers as $userteacher) {
                                     EmailTemplate::send('user_signed_up_for_event_teacher', array('course' => $approvecourse,
@@ -320,6 +320,11 @@ if ($data = $callform->get_data()) {
                                                                                                   'event' => $event));
                                 }
                             }
+
+                            // Reset the module cache.
+                            $cm = get_coursemodule_from_instance('trainingevent', $event->id, $event->course);
+                            course_modinfo::purge_course_modules_cache($approvecourse->id, [$cm->id]);
+
                         }
                     } else if ($senddenied) {
                         EmailTemplate::send('course_classroom_denied', array('course' => $approvecourse,

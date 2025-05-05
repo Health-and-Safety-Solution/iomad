@@ -125,7 +125,7 @@ class inprogress_view implements renderable, templatable {
                     $criteria = $completion->get_criteria();
                     $complete = $completion->is_complete();
                     if ($complete) {
-                        $completestring = " - " . date($CFG->iomad_date_format, $completion->timecompleted);
+                        $completestring = " - " . userdate($completion->timecompleted, $CFG->iomad_date_format);
                         $completed++;
                     } else {
                         $completestring = " - " . get_string('no');
@@ -156,7 +156,7 @@ class inprogress_view implements renderable, templatable {
                 }
         
                 // Add in the modified time.
-                $tooltip .= format_string(get_string('lastmodified') . " - " .date($CFG->iomad_date_format, $inprogress->modifiedtime));
+                $tooltip .= format_string(get_string('lastmodified') . " - " .userdate($inprogress->modifiedtime, $CFG->iomad_date_format));
                 $exportedcourse->progresstooltip = $tooltip;
             }
             $inprogressview['courses'][] = $exportedcourse;

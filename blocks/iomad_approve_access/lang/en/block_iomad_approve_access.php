@@ -54,5 +54,6 @@ $string['privacy:metadata:block_iomad_approve_access:manger_ok'] = 'Department m
 $string['privacy:metadata:block_iomad_approve_access'] = 'IOMAD manager approve access block';
 $string['request_denied'] = 'Request denied';
 $string['request_granted'] = 'Request granted';
+$string['request_raised'] = 'Request raised';
 $string['title'] = 'Approve users';
 $string['userstoapprove'] = 'You have new approval requests';

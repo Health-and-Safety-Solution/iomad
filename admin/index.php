@@ -786,7 +786,11 @@ if (!$outagelessupgrade) {
 
     } else {
         // IOMAD
-        $SESSION->iomadupgradecheck = true;
+        if (empty($SESSION->iomadupgradecheck)) {
+            $SESSION->iomadupgradecheck = true;
+        } else {
+            $SESSION->iomadupgradecheck = false;
+        }
 
         // Just make sure upgrade logging is properly terminated.
         upgrade_finished('upgradesettings.php');

@@ -234,9 +234,9 @@ $licenselist = array(0 => get_string('all'));
 $licenses = $DB->get_records('companylicense', array('companyid' => $companyid), 'expirydate DESC', 'id,name,startdate,expirydate');
 foreach ($licenses as $license) {
     if ($license->expirydate < time()) {
-        $licenselist[$license->id] = $license->name . " (" . get_string('licenseexpired', 'block_iomad_company_admin', date($CFG->iomad_date_format, $license->expirydate)) . ")";
+        $licenselist[$license->id] = $license->name . " (" . get_string('licenseexpired', 'block_iomad_company_admin', userdate($license->expirydate, $CFG->iomad_date_format)) . ")";
     } else if ($license->startdate > time()) {
-        $licenselist[$license->id] = $license->name . " (" . get_string('licensevalidfrom', 'block_iomad_company_admin', date($CFG->iomad_date_format, $license->startdate)) . ")";
+        $licenselist[$license->id] = $license->name . " (" . get_string('licensevalidfrom', 'block_iomad_company_admin', userdate($license->startdate, $CFG->iomad_date_format)) . ")";
     } else {
         $licenselist[$license->id] = $license->name;
     }
@@ -436,6 +436,7 @@ $table->no_sorting('dateunallocated');
 $table->no_sorting('numallocations');
 $table->no_sorting('numunallocations');
 
+$linkurl->remove_params(['page']);
 $table->set_sql($selectsql, $fromsql, $wheresql, $sqlparams);
 $table->set_count_sql($countsql, $sqlparams);
 $table->define_baseurl($linkurl);

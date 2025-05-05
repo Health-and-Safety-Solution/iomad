@@ -51,6 +51,8 @@ class editusers_table extends table_sql {
      * @return string HTML content to go inside the td.
      */
     public function col_fullname($row) {
+        global $companycontext;
+
         $name = fullname($row, has_capability('moodle/site:viewfullnames', $this->get_context()));
 
         // Deal with suspended users.
@@ -60,8 +62,8 @@ class editusers_table extends table_sql {
         }
 
         // Can we see a link?
-        $usercontext = context_user::instance($row->id);
-        if (has_capability('moodle/user:viewdetails', $usercontext) || has_capability('moodle/user:viewalldetails', $usercontext)) {
+        if (has_capability('block/iomad_company_admin:editusers', $companycontext) ||
+            has_capability('block/iomad_company_admin:editallusers', $companycontext)) {
             $profileurl = new moodle_url('/user/profile.php', ['id' => $row->id]);
             return html_writer::tag('a', $name, ['href' => $profileurl]);
         } else {
@@ -105,6 +107,11 @@ class editusers_table extends table_sql {
                 return $returnstr;
 
             } else {
+                // If there are no departments available to the current user then return a empty string
+                if (empty($userdepartments)) {
+                    return '';
+                }
+
                 $editable = new \block_iomad_company_admin\output\user_departments_editable($company,
                                                               $companycontext,
                                                               $row,
@@ -168,7 +175,7 @@ class editusers_table extends table_sql {
             $userdepartments = array_keys($DB->get_records('company_users', ['companyid' => $company->id, 'userid' => $row->id], '', 'departmentid'));
             $usertypeselect = $this->usertypeselect;
             if (count($userdepartments) > 1 ||
-                $userdepartments[0] != $this->parentlevel->id) {
+                isset($userdepartments[0]) && $userdepartments[0] != $this->parentlevel->id) {
                 unset($usertypeselect[10]);
                 unset($usertypeselect[11]);
             }
@@ -183,6 +190,11 @@ class editusers_table extends table_sql {
             // Added due to value mismatch when editing under certain circumstances.
             if (empty($currentvalue)) {
                 $currentvalue = 0;
+            }
+
+            // If there are no departments for the current user then output their role as text
+            if (empty($userdepartments)) {
+                return $usertypeselect[$currentvalue];
             }
 
             $editable = new \block_iomad_company_admin\output\user_roles_editable($company,
@@ -217,7 +229,7 @@ class editusers_table extends table_sql {
         global $CFG;
 
         if (!empty($row->lastaccess)) {
-            return date($CFG->iomad_date_format, $row->lastaccess);
+            return userdate($row->lastaccess, $CFG->iomad_date_format);
         } else {
             return get_string('never');
         }
@@ -378,30 +390,6 @@ class editusers_table extends table_sql {
 
         return $output->render($menu);
 
-    }
-
-    /**
-     * This function is not part of the public api.
-     */
-    function print_nothing_to_display() {
-        global $OUTPUT, $CFG;
-
-        // Render the dynamic table header.
-        echo $this->get_dynamic_table_html_start();
-
-        // Render button to allow user to reset table preferences.
-        echo $this->render_reset_button();
-
-        $this->print_initials_bar();
-
-        echo $OUTPUT->heading(get_string('nothingtodisplay'));
-
-        // Render the dynamic table footer.
-        echo $this->get_dynamic_table_html_end();
-
-        // Add the button to add a user.
-        echo $OUTPUT->single_button(new moodle_url($CFG->wwwroot . '/blocks/iomad_company_admin/company_user_create_form.php'),
-                                    get_string('createuser', 'block_iomad_company_admin'));
     }
 
     protected $companyid;

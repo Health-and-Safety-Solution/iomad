@@ -62,11 +62,11 @@ $companypaths->check_group($id);
 
 // Set up picture draft area
 $picturedraftid = file_get_submitted_draft_itemid('picture');
-file_prepare_draft_area($picturedraftid, $companycontext->id, 'local_iomad_learningpath', 'picture', $id,
+file_prepare_draft_area($picturedraftid, $systemcontext->id, 'local_iomad_learningpath', 'picture', $id,
     ['maxfiles' => 1]);
 
 // Form
-$form = new local_iomad_learningpath\forms\editpath_form();
+$form = new local_iomad_learningpath\forms\editpath_form(null, ['id' => $id, 'companyid' => $companyid]);
 
 // Handle form activity.
 $exiturl = new moodle_url('/local/iomad_learningpath/manage.php');
@@ -86,12 +86,19 @@ if ($form->is_cancelled()) {
     } else {
         $DB->update_record('iomad_learningpath', $path);
     }
-    file_save_draft_area_files($data->picture, $companycontext->id, 'local_iomad_learningpath', 'picture', $id,
-        ['maxfiles' => 1]);
-
-    // Resize image and create thumbnail
-    $companypaths->process_image($companycontext, $id);
-
+    // Check if a file has been uploaded
+    $fs = get_file_storage();
+    $files = $fs->get_area_files(5, 'user', 'draft', $data->picture, 'itemid', false);
+    if (!empty($files)) {
+        file_save_draft_area_files($data->picture, $systemcontext->id, 'local_iomad_learningpath', 'picture', $id,
+            ['maxfiles' => 1]);
+        // Resize image and create thumbnail
+        $companypaths->process_image($systemcontext, $id);
+    } else {
+        foreach (['mainpicture', 'thumbnail', 'picture'] as $filearea) {
+            $companypaths->delete_file($systemcontext->id, 'local_iomad_learningpath', $filearea, $id, true);
+        }
+    }
     redirect($exiturl);
 }
 

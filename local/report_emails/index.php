@@ -198,12 +198,12 @@ if (!empty($fieldnames)) {
 }
 
 // Url stuff.
-$url = new moodle_url('/local/report_emails/index.php');
+$baseurl = new moodle_url('/local/report_emails/index.php');
 
 // Page stuff:.
 $strcompletion = get_string('pluginname', 'local_report_emails');
 $PAGE->set_context($companycontext);
-$PAGE->set_url($url);
+$PAGE->set_url($baseurl);
 $PAGE->set_pagelayout('report');
 $PAGE->set_title($strcompletion);
 $PAGE->requires->css("/local/report_emails/styles.css");
@@ -250,7 +250,7 @@ $foundobj = iomad::add_user_filter_params($params, $companyid);
 $idlist = $foundobj->idlist;
 $foundfields = $foundobj->foundfields;
 
-$url = new moodle_url('/local/report_emails/index.php', $params);
+$baseurl = new moodle_url('/local/report_emails/index.php', $params);
 
 // Deal with resend check.
 if ($emailid and confirm_sesskey()) {
@@ -270,7 +270,7 @@ if ($emailid and confirm_sesskey()) {
         die;
     } else {
         $DB->set_field('email', 'sent', null, array('id' => $emailid));
-        redirect($url);
+        redirect($baseurl);
         die;
     }
 }
@@ -316,11 +316,6 @@ $select = new single_select($selecturl, 'templateid', $templatenames, $templatei
 $select->label = get_string('templatetype', 'local_email');
 $select->formid = 'choosetemplate';
 $templateselectoutput = html_writer::tag('div', $output->render($select), array('id' => 'iomad_template_selector'));
-
-if (!(iomad::has_capability('block/iomad_company_admin:editusers', $companycontext) or
-      iomad::has_capability('block/iomad_company_admin:editallusers', $companycontext))) {
-    throw new moodle_exception('nopermissions', 'error', '', 'report on users');
-}
 
 $searchinfo = iomad::get_user_sqlsearch($params, $idlist, $sort, $dir, $departmentid, true, true);
 
@@ -387,7 +382,7 @@ if ($allemails and confirm_sesskey()) {
             $DB->set_field('email', 'sent', null, array('id' => $email->id));
         }
 
-        redirect($url);
+        redirect($baseurl);
         die;
     }
 }
@@ -404,7 +399,7 @@ if (!$table->is_downloading()) {
     // Display the search form and department picker.
     if (!empty($companyid)) {
         if (empty($table->is_downloading())) {
-            echo $output->display_tree_selector($company, $parentlevel, $url, $params, $departmentid);
+            echo $output->display_tree_selector($company, $parentlevel, $baseurl, $params, $departmentid);
 
             echo html_writer::start_tag('div', array('class' => 'iomadclear'));
             echo html_writer::start_tag('div', array('class' => 'controlitems'));
@@ -513,9 +508,12 @@ $columns[] = 'due';
 $columns[] = 'sent';
 $columns[] = 'controls';
 
+// Remove page parameter from $baseurl
+$baseurl->remove_params(['page']);
+
 $table->set_sql($selectsql, $fromsql, $wheresql, $sqlparams);
 $table->set_count_sql($countsql, $sqlparams);
-$table->define_baseurl($url);
+$table->define_baseurl($baseurl);
 $table->define_columns($columns);
 $table->define_headers($headers);
 $table->no_sorting('controls');

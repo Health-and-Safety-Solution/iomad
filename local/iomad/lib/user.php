@@ -83,9 +83,6 @@ class company_user {
             $clashed = true;
         }
 
-        // Deal with the company theme.
-        $user->theme = $company->get_theme();
-
         // Only create the user if there is no clash.
         if (!$clashed) {
             if ($user->sendnewpasswordemails && !$user->preference_auth_forcepasswordchange) {
@@ -181,6 +178,10 @@ class company_user {
             $id = $user->id;
         }
 
+        // Deal with the company theme.
+        $usertheme = $company->get_theme();
+        $DB->set_field('user', 'theme', $usertheme, ['id' => $user->id]);
+
         // Attach user to company.
         // Do we have a department?
         if (empty($data->departmentid)) {
@@ -228,7 +229,7 @@ class company_user {
 
         if (!$user = $DB->get_record('user', ['id' => $userid, 'deleted' => 0])) {
             // User doesn't exist
-            return;
+            return false;
         }
 
         // Get the company details for the user.
@@ -263,6 +264,7 @@ class company_user {
             // Delete the user.
             delete_user($user);
         }
+        return true;
     }
 
     /**
@@ -336,6 +338,57 @@ class company_user {
 
         // Mark user as suspended.
         $DB->set_field('user', 'suspended', 0, array('id' => $userid));
+    }
+
+    /**
+     * Perform signup form validation for a new user.
+     * @param  array $data  the sign-up data
+     * @param  array $files files among the data
+     * @return array list of errors, being the key the data element name and the value the error itself
+     * @since Moodle 3.2
+     */
+    public static function signup_validate_data($data, $files) {
+        global $CFG, $DB, $SESSION;
+
+        $companyid = $SESSION->currenteditingcompany;
+        $errors = [];
+
+        // Check if there is a username already with a different email.
+        if ($DB->get_record_sql("SELECT id FROM {user}
+                                 WHERE username = :username
+                                 AND email != :email",
+                                 ['username' => $data['username'],
+                                  'email' => $data['email']])) {
+            $errors['username'] = get_string('usernameexists');
+            if ($CFG->local_iomad_signup_useemail) {
+                $errors['email'] = get_string('emailexists');
+            }
+        } else if ($DB->get_records_sql("SELECT u.id FROM {user} u
+                                         JOIN {company_users} cu ON u.id = cu.userid
+                                         WHERE cu.companyid = :companyid
+                                         AND u.username = :username",
+                                        ['companyid' => $companyid,
+                                         'username' => $data['username']])) {
+            $errors['username'] = get_string('usernameexists');
+            if ($CFG->local_iomad_signup_useemail) {
+                $errors['email'] = get_string('emailexists');
+            }
+        } else if ($currentuserid = $DB->get_record_sql("SELECT DISTINCT u.id FROM {user} u
+                                                         JOIN {company_users} cu ON u.id = cu.userid
+                                                         WHERE cu.companyid != :companyid
+                                                         AND u.username = :username
+                                                         AND password != ''",
+                                                        ['companyid' => $companyid,
+                                                         'username' => $data['username']])) {
+            $SESSION->signupuserinothercompany = true;
+            $SESSION->clasheduserid = $currentuserid->id;
+            return ['companyid' => get_string('error')];
+        } else {
+            // Use the core Moodle checks.
+            $errors = signup_validate_data($data, $files);
+        }
+
+        return $errors;
     }
 
     /**
@@ -935,12 +988,28 @@ class company_user {
         global $DB, $CFG;
 
         $rebuildcache = false;
+        $singleentry = true;
+
+        // Is this more complicated than 1 entry?
+        if (!empty($litid)) {
+            $litrec = $DB->get_record('local_iomad_track', ['id' => $litid]);
+            if ($DB->record_exists_sql("SELECT DISTINCT userid FROM {local_iomad_track}
+                                        WHERE userid = :userid
+                                        AND courseid = :courseid
+                                        AND timecompleted IS NULL
+                                        AND coursecleared = 0
+                                        AND timeenrolled >= :timeenrolled
+                                        AND id != :id",
+                                        (array) $litrec)) {
+                $singleentry = false;
+            }
+        }
 
         try {
             $transaction = $DB->start_delegated_transaction();
 
             // Is this a single entry only?
-            if (empty($litid)) {
+            if (empty($litid) || $singleentry) {
                 $rebuildcache = true;
 
                 // Remove enrolments
@@ -957,6 +1026,7 @@ class company_user {
                 if ($modules = $DB->get_records_sql("SELECT id FROM {course_modules} WHERE course = :course AND completion != 0", array('course' => $courseid))) {
                     foreach ($modules as $module) {
                         $DB->delete_records('course_modules_completion', array('userid' => $userid, 'coursemoduleid' => $module->id));
+                        $DB->delete_records('course_modules_viewed', array('userid' => $userid, 'coursemoduleid' => $module->id));
                     }
                 }
 
@@ -1059,7 +1129,7 @@ class company_user {
                 $litparams = $litparams +
                              ['userid' => $userid,
                               'courseid' => $courseid];
-                $litsql .= "userid = :userid AND courseid = :courseid and timecompleted > 0";
+                $litsql .= "userid = :userid AND courseid = :courseid";
                 $DB->set_field_select('local_iomad_track', 'coursecleared', 1, $litsql, $litparams);
             }
             // Fix company licenses
@@ -1209,7 +1279,7 @@ class company_user {
             $company = new company($companyid);
             $returnobject->companyname = $company->get_name();
             $returnobject->companylogo = company::get_logo_url($companyid, null, 25);
-            $mycompanies = company::get_companies_select(false, false, false, 'cu.lastused DESC, name ASC');
+            $mycompanies = company::get_companies_select(false, false, true, 'cu.lastused DESC, name ASC');
             $returncompanies = [];
             if (count($mycompanies) > 1 ||
                 (count($mycompanies) == 1
@@ -1258,7 +1328,7 @@ class company_user {
         $returnobject = (object) [];
 
         // Set the companyid
-        $mycompanies = company::get_companies_select(false, false, false, 'cu.lastused DESC, name ASC', $search);
+        $mycompanies = company::get_companies_select(false, false, true, 'cu.lastused DESC, name ASC', $search);
         $returncompanies = (object) [];
         $returncompanies->companies = (object) [];    
         $rows = [];
@@ -1303,10 +1373,10 @@ class iomad_company_search_form extends moodleform {
 
         $mform =& $this->_form;
 
-        $sarcharray = array();
+        $searcharray = array();
         $searcharray[] = $mform->createElement('text', 'search');
         $searcharray[] = $mform->createElement('submit', 'searchbutton', get_string('search'));
         $mform->addGroup($searcharray, 'searcharray', '', ' ', false);
-        $mform->setType('search', PARAM_ALPHANUM);
+        $mform->setType('search', PARAM_CLEAN);
     }
 }

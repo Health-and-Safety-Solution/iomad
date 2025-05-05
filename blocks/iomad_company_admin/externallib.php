@@ -2376,14 +2376,54 @@ class block_iomad_company_admin_external extends external_api {
         }
 
         foreach ($params['enrolments'] as $enrolment) {
-            // Get the company for the user.
-            if (!$company = company::by_userid($enrolment['userid'])) {
-                continue;
-            }
+            $gotcompany = false;
 
+            // Does the user exist?
             if (!$user = $DB->get_record('user', array('id' => $enrolment['userid']))) {
                 continue;
             }
+
+            // Does the course belong to a company?
+            if (!$companycourses = $DB->get_records_sql("SELECT DISTINCT c.id AS companyid
+                                                         FROM {company} c
+                                                         JOIN {company_course} cc ON c.id = cc.companyid
+                                                         WHERE cc.courseid = :courseid",
+                                                         ['courseid' => $enrolment['courseid']])) {
+                if (!$company = company::by_userid($enrolment['userid'])) {
+                    continue;
+                } else {
+                    $gotcompany = true;
+                }
+            }
+
+            // Is it more than one?
+            if (count($companycourses) > 1) {
+                if (!$usercompanies = $DB->get_records_sql("SELECT companyid FROM {company_user}
+                                                            WHERE userid = :userid
+                                                            AND companyid IN (" . implode(',', array_keys($companycourses)) . ")",
+                                                            ['userid' => $enrolment['userid']])) {
+                    // We can't work out where to put them.
+                    continue;
+                } else {
+                    // Use the first of these as the company.
+                    $companydetails = reset($usercompanies);
+                    $company = new company($companydetails->companyid);
+                    $gotcompany = true;
+                }
+            }
+
+            if (!$gotcompany) {
+                // Company will be the company the course is allocated to.
+                $companydetails = reset($companycourses);
+                $company = new company($companydetails->companyid);
+            }
+
+            // Is the user already in this company?
+            if (!$DB->get_records('company_users', ['companyid' => $company->id, 'userid' => $enrolment['userid']])) {
+                // No - so we add them.
+                $company->assign_user_to_company($user->id, 0, 0, true, false);
+            }
+
             // Is this a licensed course?
             if ($DB->get_record('iomad_courses', array('courseid' => $enrolment['courseid'], 'licensed' => 1))) {
                 if (empty($enrolment['timestart'])) {
@@ -2794,12 +2834,12 @@ class block_iomad_company_admin_external extends external_api {
             'licenseid' => $licenseid,
         ]);
 
-        // Security.
-        $context = context_system::instance();
-        iomad::require_capability('block/iomad_company_admin:allocate_licenses', $context);
-
         // Get license
         $license = $DB->get_record('companylicense', ['id' => $params['licenseid']], '*', MUST_EXIST);
+
+        // Security.
+        $context = \core\context\company::instance($license->companyid);
+        iomad::require_capability('block/iomad_company_admin:allocate_licenses', $context);
 
         // Get license courses (with extra)
         $sql = 'SELECT co.id AS id, co.fullname AS fullname

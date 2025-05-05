@@ -29,6 +29,17 @@ require_once($CFG->dirroot.'/mod/trainingevent/lib.php');
 class mod_trainingevent_observer {
 
     /**
+     * Triggered via mod_trainingevent::attendance_changed event.
+     *
+     * @param \mod_trainingevent\event\attendance_changed $event
+     * @return bool true on success.
+     */
+    public static function attendance_changed($event) {
+        trainingevent_attendance_changed($event);
+        return true;
+    }
+
+    /**
      * Triggered via mod_trainingevent::user_added event.
      *
      * @param \mod_trainingevent\event\user_added $event
@@ -40,13 +51,35 @@ class mod_trainingevent_observer {
     }
 
     /**
-     * Triggered via block_iomad_company_admin::company_created event.
+     * Triggered via mod_trainingevent::user_removed event.
      *
      * @param \mod_trainingevent\event\user_removed $event
      * @return bool true on success.
      */
     public static function user_removed($event) {
         trainingevent_user_removed($event);
+        return true;
+    }
+
+    /**
+     * Triggered via block_iomad_approve_access::request_denied event.
+     *
+     * @param \block_iomad_approve_access\event\request_denied $event
+     * @return bool true on success.
+     */
+    public static function request_denied($event) {
+        trainingevent_request_denied($event);
+        return true;
+    }
+
+    /**
+     * Triggered via core::course_module_completion_updated event.
+     *
+     * @param \core\event\course_module_completion_updated $event
+     * @return bool true on success.
+     */
+    public static function course_module_completion_updated($event) {
+        trainingevent_course_module_completion_updated($event);
         return true;
     }
 }

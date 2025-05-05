@@ -86,7 +86,7 @@ class send_reminder_emails extends \core\task\scheduled_task {
                         continue;
                     }
 
-                    $location->time = date($CFG->iomad_date_format . ' \a\t H:i', $trainingevent->startdatetime);
+                    $location->time = userdate($trainingevent->startdatetime, $CFG->iomad_date_format . " at %I:%M%p");
 
                     // Send the reminders.
                     foreach ($eventusers as $eventuser) {

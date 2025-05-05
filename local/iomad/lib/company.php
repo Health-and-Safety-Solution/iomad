@@ -32,6 +32,8 @@ class company {
     public $id = 0;
 
     protected $companyrecord = null;
+    
+    public $context = null;
 
     // These are the fields that will be retrieved by.
     public $cssfields = array('bgcolor_header', 'bgcolor_content');
@@ -44,8 +46,10 @@ class company {
             unset($SESSION->currenteditingcompany);
             unset($SESSION->company);
             unset($this->id);
+            unset($this->context);
             return;
         }
+        $this->context = \core\context\company::instance($companyid);
     }
 
     /**
@@ -375,9 +379,14 @@ class company {
         if (!empty($CFG->iomad_show_company_structure)) {
             $companyselect = array();
             foreach ($companies as $id => $companyname) {
+                $currentcompanycontext = \core\context\company::instance($id);
                 $companyselect[$id] = $companyname;
-                $allchildren = self::get_formatted_child_companies_select($id);
-                $companyselect = $companyselect + $allchildren;
+                // Only show children is we are able to.
+                if ($showchildren &&
+                    iomad::has_capability('block/iomad_company_admin:canviewchildren', $currentcompanycontext)) {
+                    $allchildren = self::get_formatted_child_companies_select($id);
+                    $companyselect = $companyselect + $allchildren;
+                }
             }
             return $companyselect;
         } else {
@@ -1289,10 +1298,14 @@ class company {
             $parentcompanysql = " AND companyid != :companyid";
         }
 
-
-        // Get the list of company courses.
-        $companyassignedcourses = $DB->get_records('company_course', ['companyid' => $companyid]);
-        $sharedcourses = $DB->get_records('iomad_courses', ['shared' => 1]);
+        // Get the list of non-licensed company courses.
+        $companyassignedcourses = $DB->get_records_sql("SELECT cc.* FROM {company_course} cc
+                                                        JOIN {iomad_courses} ic
+                                                        ON cc.courseid = ic.courseid
+                                                        WHERE cc.companyid = :companyid
+                                                        AND ic.licensed = 0",
+                                                       ['companyid' => $companyid]);
+        $sharedcourses = $DB->get_records('iomad_courses', ['shared' => 1, 'licensed' => 0]);
         $companycourses = [];
         foreach ($companyassignedcourses as $companyassignedcourse) {
             $companycourses[$companyassignedcourse->courseid] = $companyassignedcourse;
@@ -1417,7 +1430,7 @@ class company {
                 if ($companycount == 0) {
                     // Fire an email for this.
                     EmailTemplate::send('user_promoted',
-                                   array('company' => $company->companyrecord,
+                                   array('company' => $company,
                                          'user' => $userrec));
                 }
             } else if ($managertype == 2) {
@@ -1447,7 +1460,7 @@ class company {
                 if ($companycount == 0) {
                     // Fire an email for this.
                     EmailTemplate::send('user_promoted',
-                                   array('company' => $company->companyrecord,
+                                   array('company' => $company,
                                          'user' => $userrec));
                 }
             } else if ($managertype == 4 ) {
@@ -1516,7 +1529,7 @@ class company {
                         if ($companycount == 0) {
                             // Fire an email for this.
                             EmailTemplate::send('user_promoted',
-                                           array('company' => $company->companyrecord,
+                                           array('company' => $company,
                                                  'user' => $userrec));
                         }
                     }
@@ -1541,7 +1554,7 @@ class company {
                     if ($user->managertype == 0) {
                         // Fire an email for this.
                         EmailTemplate::send('user_promoted',
-                                       array('company' => $company->companyrecord,
+                                       array('company' => $company,
                                              'user' => $userrec));
                     }   
                 } else if ($managertype == 3 && !$CFG->iomad_autoenrol_managers) {
@@ -1652,7 +1665,7 @@ class company {
                     if ($companycount == 1) {
                         // Fire an email for this.
                         EmailTemplate::send('admin_deleted',
-                                       array('company' => $company->companyrecord,
+                                       array('company' => $company,
                                              'user' => $userrec));
                     }
                 }
@@ -2148,7 +2161,7 @@ class company {
         if (isset($parent->id)) {
             if ($children = $DB->get_records('department', array('parent' => $parent->id), 'name', '*')) {
                 foreach ($children as $child) {
-                    $returnarray->children[] = self::get_subdepartments($child, $ignorecurrentbranch);
+                    $returnarray->children[$child->id] = self::get_subdepartments($child, $ignorecurrentbranch);
                 }
             }
         }
@@ -2390,6 +2403,32 @@ class company {
             } else {
                 $result[$key] = $value;
             }
+        }
+        if ($r) {
+            return $result;
+        }
+    }
+
+    /**
+     * function to flatten a multi-dimension array to a single dimension array.
+     *
+     * Parameters -
+     *              $array = array();
+     *              &$result = array();
+     *
+     * Returns array();
+     *
+     **/
+    public static function array_flatten_children($array, &$result=null) {
+
+        $r = null === $result;
+        $i = 0;
+        foreach ($array as $key => $value) {
+            $i++;
+            if (!empty($value->children) && is_array($value->children)) {
+                self::array_flatten_children($value->children, $result);
+            }
+            $result[$key] = $value;
         }
         if ($r) {
             return $result;
@@ -3066,6 +3105,16 @@ class company {
     public function get_menu_courses($shared = false, $licensed = false, $groups = false, $default = true, $onlylicensed = false, $noncompany = false) {
         global $DB;
 
+        // Can we view hidden courses?
+        $hiddensql = " AND c.visible = 0 ";
+        $showhidden = false;
+        $hiddenstring = " (" . get_string('hidden', 'grades') . ")";
+        if (iomad::has_capability('block/iomad_company_admin:hideshowcourses', $this->context) ||
+            iomad::has_capability('block/iomad_company_admin:hideshowallcourses', $this->context)) {
+            $hiddensql = "";
+            $showhidden = true;
+        }
+
         // Deal with license option.
         if ($licensed) {
             $licensesql = "c.id NOT IN (
@@ -3124,25 +3173,35 @@ class company {
                               )";
         }
         // Get the courses.
-        $retcourses = $DB->get_records_sql_menu("SELECT c.id, c.fullname
-                                                 FROM {course} c
-                                                 WHERE
-                                                 $groupsql
-                                                 $licensesql
-                                                 $onlylicensedsql
-                                                 c.id IN (
-                                                     SELECT courseid FROM {company_course}
-                                                     WHERE companyid = :companyid
-                                                 )
-                                                 $sharedsql
-                                                 $noncompanysql
-                                                 ORDER BY c.fullname",
-                                                 array('companyid' => $this->id,
-                                                       'companyid2' => $this->id));
+        $retcourses = $DB->get_records_sql("SELECT c.id, c.fullname, c.visible
+                                            FROM {course} c
+                                            WHERE
+                                            $groupsql
+                                            $licensesql
+                                            $onlylicensedsql
+                                            c.id IN (
+                                                SELECT courseid FROM {company_course}
+                                                WHERE companyid = :companyid
+                                            )
+                                            $sharedsql
+                                            $noncompanysql
+                                            $hiddensql
+                                            ORDER BY c.fullname",
+                                           ['companyid' => $this->id,
+                                            'companyid2' => $this->id]);
 
         // Take care of multilanguage
         foreach ($retcourses as $courseid => $course) {
-            $retcourses[$courseid] = format_string($course, true, 1);
+            $displayname = format_string($course->fullname, true, 1);
+            if ($course->visible == 0) {
+                if ($showhidden) {
+                    $displayname = format_string($displayname . $hiddenstring);
+                } else {
+                    unset($retcourses[$courseid]);
+                    continue;
+                }
+            }
+            $retcourses[$courseid] = $displayname;
         }
 
         // Add a default entry and return the courses.
@@ -4142,11 +4201,9 @@ class company {
             return true;
         }
 
-        if ($managertype == 0) {
-            if ($DB->get_records('email_template', array('companyid' => $this->id, 'name' => $templatename, 'disabled' => 1))) {
-                // Disabled for the company.
-                return false;
-            }
+        if ($DB->get_records('email_template', array('companyid' => $this->id, 'name' => $templatename, 'disabled' => 1))) {
+            // Disabled for the company.
+            return false;
         }
 
         if ($managertype == 1) {
@@ -4251,7 +4308,7 @@ class company {
         $currentsettings = [];
         $pluginsettings = get_config($pluginname);
         foreach ($pluginsettings as $setting => $value) {
-            if (preg_match('/_'.$postfix.'$/', $setting)) {
+            if (preg_match('/'.$postfix.'$/', $setting)) {
                 $currentsettings[$setting] = $value;
             } else if ($setting == 'version' || preg_match('/_\d+$/', $setting)) {
                 continue;
@@ -4261,6 +4318,7 @@ class company {
         }
         // should have all the defaults - strip any we have config for.
         foreach ($currentsettings as $current => $dump) {
+            $current = str_replace($postfix, "", $current);
             unset($settings[$current]);
         }
         // Set any missing.
@@ -4845,7 +4903,7 @@ class company {
 
             $user = $DB->get_record('user', array('id' => $userid));
             EmailTemplate::send('user_deleted',
-                                 array('company' => $usercompany,
+                                 array('company' => $company,
                                        'user' => $user));
         }
 
@@ -4950,8 +5008,8 @@ class company {
 
         $license = new stdclass();
         $license->length = $licenserecord->validlength;
-        $license->valid = date($CFG->iomad_date_format, $licenserecord->expirydate);
-        $license->startdate = date($CFG->iomad_date_format, $licenserecord->startdate);
+        $license->valid = userdate($licenserecord->expirydate, $CFG->iomad_date_format);
+        $license->startdate = userdate($licenserecord->startdate, $CFG->iomad_date_format);
 
         if (!$noemail) {
         // Send out the email.
@@ -5118,7 +5176,7 @@ class company {
 
         $license = new stdclass();
         $license->length = $licenserecord->validlength;
-        $license->valid = date($CFG->iomad_date_format, $licenserecord->expirydate);
+        $license->valid = userdate($licenserecord->expirydate, $CFG->iomad_date_format);
 
         if ($emailrecs = $DB->get_records('email', array('userid' => $user->id,
                                                          'courseid' => $course->id,

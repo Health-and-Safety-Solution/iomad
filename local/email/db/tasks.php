@@ -26,8 +26,8 @@
 
 defined('MOODLE_INTERNAL') || die();
 
-$tasks = array(
-    array(
+$tasks = [
+    [
         'classname' => 'local_email\task\cron_task',
         'blocking' => 0,
         'minute' => '*/5',
@@ -35,5 +35,14 @@ $tasks = array(
         'day' => '*',
         'month' => '*',
         'dayofweek' => '*'
-    )
-);
+    ],
+    [
+        'classname' => 'local_email\task\refreshlangpacks',
+        'blocking' => 0,
+        'minute' => 'R',
+        'hour' => 'R',
+        'day' => '1',
+        'month' => '*',
+        'dayofweek' => '*'
+    ],
+];

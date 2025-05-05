@@ -47,7 +47,7 @@ class approve_form extends moodleform {
             if (!$department) {
                 $mform->addElement('html', '* '.get_string('managernotyetapproved', 'block_iomad_approve_access'));
             }
-            $dateformat = $CFG->iomad_date_format . ", g:ia";
+            $dateformat = $CFG->iomad_date_format . ", %I:%M%p";
             foreach ($results as $result) {
 
                 // Get the user info.
@@ -58,6 +58,11 @@ class approve_form extends moodleform {
 
                 // Get the activity info.
                 $activity = $DB->get_record('trainingevent', array('id' => $result->activityid));
+
+                // Get the course module id
+                if(!$cmid = get_coursemodule_from_instance('trainingevent', $result->activityid, $result->courseid)){
+                    throw new \moodle_exception('invalidcoursemodule');
+                }
 
                 // Get the room info.
                 $roominfo = $DB->get_record('classroom', array('id' => $activity->classroomid));
@@ -98,8 +103,8 @@ class approve_form extends moodleform {
                     $mform->addGroup($radioarray, 'approve_'.$result->userid.'_'.$result->courseid,
                                      $user->firstname. ' '. $user->lastname.' : '.$course->fullname.'
                                      <a href="'.
-                                     new moodle_url('/mod/trainingevent/manageclass.php', array('id' => $result->activityid)).'">'.
-                                     $activity->name.' '.date($dateformat, $activity->startdatetime).'</a>',
+                                     new moodle_url('/mod/trainingevent/view.php', array('id' => $cmid->id)).'">'.
+                                     $activity->name.' '.userdate($activity->startdatetime, $dateformat).'</a>',
                                      array(' '), false);
                 } else {
                     $radioarray[] =& $mform->createElement('radio',
@@ -110,8 +115,8 @@ class approve_form extends moodleform {
                     $mform->addGroup($radioarray, '_'.$result->userid.'_'.$result->courseid,
                                      $user->firstname. ' '. $user->lastname.' : '.$course->fullname.'
                                      <a href="'.
-                                     new moodle_url('/mod/trainingevent/manageclass.php', array('id' => $result->activityid)).'">'.
-                                     $activity->name.' '.date($dateformat, $activity->startdatetime).'</a><br><b>'.
+                                     new moodle_url('/mod/trainingevent/view.php', array('id' => $cmid->id)).'">'.
+                                     $activity->name.' '.userdate($activity->startdatetime, $dateformat).'</a><br><b>'.
                                      get_string('fullybooked', 'block_iomad_approve_access')."</b>",
                                      array(' '), false);
                 }

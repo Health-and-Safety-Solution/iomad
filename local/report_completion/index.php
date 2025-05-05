@@ -87,7 +87,11 @@ if ($action == 'downloadcerts' && $USER->id == $certusers) {
     iomad::require_capability('local/report_completion:view', $companycontext);
 }
 
-$canseechildren = iomad::has_capability('block/iomad_company_admin:canviewchildren', $companycontext);
+// Are we showing any child companies?
+$canseechildren = false;
+if (iomad::has_capability('block/iomad_company_admin:canviewchildren', $companycontext)) {
+    $canseechildren = true;
+}
 
 $params['courseid'] = $courseid;
 if ($firstname) {
@@ -200,12 +204,12 @@ if (!iomad::has_capability('local/report_users:redocertificates', $companycontex
 $buttons = "";
 
 // Url stuff.
-$url = new moodle_url('/local/report_completion/index.php', array('validonly' => $validonly));
+$baseurl = new moodle_url('/local/report_completion/index.php', array('validonly' => $validonly));
 
 // Page stuff:.
 $strcompletion = get_string('pluginname', 'local_report_completion');
 $PAGE->set_context($companycontext);
-$PAGE->set_url($url, $params);
+$PAGE->set_url($baseurl, $params);
 $PAGE->set_pagelayout('report');
 $PAGE->set_title($strcompletion);
 $PAGE->requires->css("/local/report_completion/styles.css");
@@ -230,6 +234,7 @@ if (empty($courseid)) {
 if (!empty($courseid)) {
     $buttoncaption = get_string('pluginname', 'local_report_completion');
     $buttonparams = $params;
+    unset($buttonparams['page']);
     unset($buttonparams['courseid']);
     $buttonlink = new moodle_url($CFG->wwwroot . "/local/report_completion/index.php", $buttonparams);
     $buttons .= $OUTPUT->single_button($buttonlink, $buttoncaption, 'get');
@@ -494,6 +499,7 @@ if (!empty($action)) {
                     // We are only removing the saved record for this.
                     echo $OUTPUT->confirm(get_string('purgerecordconfirm', 'local_report_users'), $confirmurl, $cancel);
                 }
+                echo $OUTPUT->footer();
                 die;
             } else {
                 $confirmurl = new moodle_url('/local/report_completion/index.php',
@@ -508,6 +514,8 @@ if (!empty($action)) {
                                              ));
                 $cancel = new moodle_url('/local/report_completion/index.php', $params);
                 echo $OUTPUT->confirm(get_string('redocertificateconfirm', 'local_report_users'), $confirmurl, $cancel);
+                echo $OUTPUT->footer();
+                die;
             }
         }
     }
@@ -562,7 +570,7 @@ $foundobj = iomad::add_user_filter_params($params, $companyid);
 $idlist = $foundobj->idlist;
 $foundfields = $foundobj->foundfields;
 
-$url = new moodle_url('/local/report_completion/index.php', $params);
+$baseurl = new moodle_url('/local/report_completion/index.php', $params);
 $selectparams = $params;
 $selecturl = new moodle_url('/local/report_completion/index.php', $selectparams);
 
@@ -590,21 +598,27 @@ if (empty($courseid)) {
     if (!$coursetable->is_downloading()) {
         // Display the control buttons.
         $buttons = "";
-        $alluserslink = new moodle_url($url, array(
+        $alluserslink = new moodle_url($baseurl, array(
             'courseid' => 1,
             'departmentid' => $departmentid,
         ));
+        $alluserslink->remove_params(['page']);
         $buttons = $output->single_button($alluserslink, get_string("allusers", 'local_report_completion'));
 
         // Also for suspended user controls.
+        // Remove 'page' from the params array
         $showsuspendedparams = $params;
+        unset($showsuspendedparams['page']);
+        // Define the $nopageurl variable and remove the 'page' parameter from it
+        $nopageurl = $baseurl;
+        $nopageurl->remove_params(['page']);
         if (!$showsuspended) {
             $showsuspendedparams['showsuspended'] = 1;
-            $suspendeduserslink = new moodle_url($url, $showsuspendedparams);
+            $suspendeduserslink = new moodle_url($nopageurl, $showsuspendedparams);
             $buttons = $buttons ."&nbsp" . $output->single_button($suspendeduserslink, get_string("showsuspendedusers", 'local_report_completion'));
         } else {
             $showsuspendedparams['showsuspended'] = 0;
-            $suspendeduserslink = new moodle_url($url, $showsuspendedparams);
+            $suspendeduserslink = new moodle_url($nopageurl, $showsuspendedparams);
             $buttons = $buttons ."&nbsp" . $output->single_button($suspendeduserslink, get_string("hidesuspendedusers", 'local_report_completion'));
         }
 
@@ -612,7 +626,7 @@ if (empty($courseid)) {
         $showpercentageoptions= [get_string("hidepercentageusers", 'block_iomad_company_admin'),
                                  get_string("showpercentageusers", 'block_iomad_company_admin'),
                                  get_string("showpercentagecourseusers", 'block_iomad_company_admin')];
-        $percentageuserslink = new moodle_url($url, $params);
+        $percentageuserslink = new moodle_url($baseurl, $params);
         $percentageselect = new single_select($percentageuserslink, 'showpercentage', $showpercentageoptions, $showpercentage);
 
         $buttons = $buttons ."&nbsp" . $output->render($percentageselect);
@@ -620,25 +634,28 @@ if (empty($courseid)) {
         // Also for validonly courses user controls.
         $validonlyparams = $params;
         $validonlyparams['validonly'] = !$validonly;
+        unset($validonlyparams['page']);
         if (!$validonly) {
             $validonlystring = get_string('hidevalidcourses', 'block_iomad_company_admin');
         } else {
             $validonlystring = get_string('showvalidcourses', 'block_iomad_company_admin');
         }
-        $validonlylink = new moodle_url($url, $validonlyparams);
+        $validonlylink = new moodle_url($nopageurl, $validonlyparams);
         $buttons = $buttons ."&nbsp" . $output->single_button($validonlylink, $validonlystring);
 
         // Also for Summary courses user controls.
         if ($viewchildren && $canseechildren) {
             $showsummaryparams = $params;
+            unset($showsummaryparams['page']);
             $showsummaryparams['showsummary'] = !$showsummary;
             if ($showsummary) {
                 $showsummarystring = get_string('showcompanydetail', 'block_iomad_company_admin');
             } else {
                 $showsummarystring = get_string('showcompanysummary', 'block_iomad_company_admin');
             }
-            $showsummarylink = new moodle_url($url, $showsummaryparams);
-        $buttons = $buttons ."&nbsp" . $output->single_button($showsummarylink, $showsummarystring);
+            $showsummarylink = new moodle_url($baseurl, $showsummaryparams);
+            $showsummarylink->remove_params(['page']);
+            $buttons = $buttons ."&nbsp" . $output->single_button($showsummarylink, $showsummarystring);
         }
 
         // Also for validonly courses user controls.
@@ -649,14 +666,14 @@ if (empty($courseid)) {
         } else {
             $showchartsstring = get_string('showdata', 'block_iomad_company_admin');
         }
-        $showchartslink = new moodle_url($url, $showchartsparams);
+        $showchartslink = new moodle_url($baseurl, $showchartsparams);
         $buttons = $buttons ."&nbsp" . $output->single_button($showchartslink, $showchartsstring);
 
-        $mform = new \local_iomad\forms\course_search_form($url, $params);
+        $mform = new \local_iomad\forms\course_search_form($baseurl, $params);
         $mform->set_data($params);
 
         // Set up the date filter form.
-        $datemform = new \local_iomad\forms\date_search_form($url, $params);
+        $datemform = new \local_iomad\forms\date_search_form($baseurl, $params);
         $datemform->set_data(array('departmentid' => $departmentid));
         $options = $params;
         $options['compfromraw'] = $from;
@@ -778,12 +795,36 @@ if (empty($courseid)) {
         }
     }
 
+    // Create $coursetableurl variable and remove the page parameter
+    $coursetableurl = $baseurl;
+    $coursetableurl->remove_params(['page']);
+    // Set objects for the $coursetable class and output the table
     $coursetable->set_sql($selectsql, $fromsql, $wheresql, $sqlparams);
-    $coursetable->define_baseurl($url);
+    $coursetable->define_baseurl($baseurl);
     $coursetable->define_columns($coursecolumns);
     $coursetable->define_headers($courseheaders);
-    $coursetable->no_sorting('licenseallocated');
-    $coursetable->no_sorting('usersummary');
+    if (iomad::has_capability('block/iomad_company_admin:licensemanagement_view', $companycontext) &&
+    $haslicenses) { 
+        if ($showcharts) {
+            $coursetable->no_sorting('licenseallocated');
+        } else {
+            $coursetable->no_sorting('licenseuserused');
+            $coursetable->no_sorting('licenseunused');
+            if ($params['showpercentage'] == 1) {
+                $coursetable->no_sorting('neverassigned');
+            }
+        }
+    }
+    if ($showcharts) {
+        $coursetable->no_sorting('usersummary');
+    } else {
+        $coursetable->no_sorting('usernotstarted');
+        $coursetable->no_sorting('userinprogress');
+        $coursetable->no_sorting('usercompleted');
+        if ($params['showpercentage'] == 1) {
+            $coursetable->no_sorting('neverenrolled');
+        }
+    }
     $coursetable->sort_default_column = 'coursename';
     $coursetable->out($CFG->iomad_max_list_users, true);
 
@@ -863,7 +904,7 @@ if (empty($courseid)) {
     $departmentsql = " AND d.id IN (" . implode(',', array_keys($showdepartments)) . ")";
 
     // all companies?
-    if (!$viewchildren && !$canseechildren && $parentslist = $company->get_parent_companies_recursive()) {
+    if ((!$viewchildren || !$canseechildren) && $parentslist = $company->get_parent_companies_recursive()) {
         $companysql = " AND u.id NOT IN (
                         SELECT userid FROM {company_users}
                         WHERE companyid IN (" . implode(',', array_keys($parentslist)) ."))";
@@ -1066,7 +1107,7 @@ if (empty($courseid)) {
         } else {
             $showsummarystring = get_string('showcompanysummary', 'block_iomad_company_admin');
         }
-        $showsummarylink = new moodle_url($url, $showsummaryparams);
+        $showsummarylink = new moodle_url($baseurl, $showsummaryparams);
         $buttons = $output->single_button($showsummarylink, $showsummarystring) . "&nbsp" .$buttons;
     }
 
@@ -1074,7 +1115,7 @@ if (empty($courseid)) {
     $showpercentageoptions= [get_string("hidepercentageusers", 'block_iomad_company_admin'),
                              get_string("showpercentageusers", 'block_iomad_company_admin'),
                              get_string("showpercentagecourseusers", 'block_iomad_company_admin')];
-    $percentageuserslink = new moodle_url($url, $params);
+    $percentageuserslink = new moodle_url($baseurl, $params);
     $percentageselect = new single_select($percentageuserslink, 'showpercentage', $showpercentageoptions, $showpercentage);
 
     $buttons = $output->render($percentageselect) . "&nbsp" .$buttons;;
@@ -1102,15 +1143,12 @@ if (empty($courseid)) {
                                                                                  AND d.company = cu.companyid)
                                                      WHERE u.deleted=0 $suspendedsql $educatorsql $companysql $departmentsql",
                                                      $sqlparams);
-            $total = !empty($totalcompanyusers) ? number_format($total * 100 / $totalcompanyusers, 2) : 0;
-            $totalstring = get_string('percents','moodle', $total); 
-            $totalstarted = !empty($totalcompanyusers) ? number_format($totalstarted * 100 / $totalcompanyusers, 2) : 0; 
-            $totalstartedstring = get_string('percents','moodle', $totalstarted); 
-            $totalcompleted = !empty($totalcompanyusers) ? number_format($totalcompleted * 100 / $totalcompanyusers, 2) : 0;
-            $totalcompletedstring = get_string('percents', 'moodle', $totalcompleted);
-            $remainder = $totalcompanyusers - $total - $totalstarted - $totalcompleted;
-            $remainder = !empty($totalcompanyusers) ? number_format($remainder * 100 / $totalcompanyusers, 2) : 0;
-            $remainderstring = get_string('percents', 'moodle', $remainder);
+            $remainder = !empty($totalcompanyusers) ? 100 - ((($total - $totalstarted) / $total) * 100) : 0;
+            $totalstarted = !empty($totalcompanyusers) ? ($totalstarted / $total) * 100 : 0;
+            $totalcompleted = !empty($totalcompanyusers) ? ($totalcompleted / $total) * 100 : 0;
+            $totalstartedstring = get_string('percents','moodle', number_format($totalstarted, 2)); 
+            $totalcompletedstring = get_string('percents', 'moodle', number_format($totalcompleted, 2));
+            $remainderstring = get_string('percents', 'moodle', number_format($remainder, 2));
     }
     if ($params['showpercentage'] != 1) {
         $summarystring = get_string('usercoursetotal', 'block_iomad_company_admin',
@@ -1157,7 +1195,7 @@ if (empty($courseid)) {
 
     // Set up the form.
     if (!empty($USER->editing) && !$table->is_downloading()) {
-        echo html_writer::start_tag('form', array('action' => $url,
+        echo html_writer::start_tag('form', array('action' => $baseurl,
                                                   'enctype' => 'application/x-www-form-urlencoded',
                                                   'method' => 'post',
                                                   'name' => 'iomad_report_user_userdisplay_values',
@@ -1181,11 +1219,14 @@ if (empty($courseid)) {
 
     }  
 
+    // Create a variable called $tableurl and remove the page paramater
+    $tableurl = $baseurl;
+    $tableurl->remove_params(['page']);
     // Set up the table and display it.
     $table->set_sql($selectsql, $fromsql, $wheresql, $sqlparams);
     $countsql = "SELECT count(DISTINCT lit.id) FROM $fromsql WHERE $wheresql";
     $table->set_count_sql($countsql, $sqlparams);
-    $table->define_baseurl($url);
+    $table->define_baseurl($tableurl);
     $table->define_columns($columns);
     $table->define_headers($headers);
     $table->no_sorting('status');

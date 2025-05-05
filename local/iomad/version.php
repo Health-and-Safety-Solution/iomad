@@ -19,9 +19,10 @@
  * @copyright 2021 Derick Turner
  * @author    Derick Turner
  * @license   http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
+ * @push date 2025/05/03
  */
 
-$plugin->release  = '4.3.9 (Build: 20241209)'; // Human-friendly version name
+$plugin->release  = '4.3.12 (Build: 20250414)'; // Human-friendly version name
 $plugin->component  = 'local_iomad';
 $plugin->requires = 2019052000;   // Requires this Moodle version.
 $plugin->version  = 2024090401;   // The (date) version of this plugin.

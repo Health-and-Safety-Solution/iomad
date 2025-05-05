@@ -49,6 +49,7 @@ $ifirst = optional_param('firstinitial', '', PARAM_ALPHA);
 $ilast = optional_param('lastinitial', '', PARAM_ALPHA);
 $showexpiryonly = optional_param('showexpiryonly', get_config('local_report_completion_overview', 'showexpiryonly'), PARAM_BOOL);
 $bycourse = optional_param('bycourse', false, PARAM_BOOL);
+$viewchildren = optional_param('viewchildren', true, PARAM_BOOL);
 
 // Deal with pagination.
 if ($perpage == 0) {
@@ -99,6 +100,7 @@ if ($courses) {
 $params['firstinitial'] = $ifirst;
 $params['lastinitial'] = $ilast;
 $params['showexpiryonly'] = $showexpiryonly;
+$params['viewchildren'] = $viewchildren;
 if ($showsuspended) {
     $params['showsuspended'] = $showsuspended;
 }
@@ -116,6 +118,7 @@ if ($sort == "name") {
 }
 
 require_login();
+
 // Get course customfields.
 $usedfields = [];
 $customfields = $DB->get_records_sql("SELECT cff.* FROM
@@ -140,6 +143,12 @@ $companycontext = \core\context\company::instance($companyid);
 $company = new company($companyid);
 
 iomad::require_capability('local/report_completion_overview:view', $companycontext);
+
+// Are we showing any child companies?
+$canseechildren = false;
+if (iomad::has_capability('block/iomad_company_admin:canviewchildren', $companycontext)) {
+    $canseechildren = true;
+}
 
 // Get the associated department id.
 $parentlevel = company::get_company_parentnode($company->id);
@@ -313,7 +322,7 @@ if (!$download) {
     if (!empty($companyid)) {
 
         // Display the tree selector thing.
-        echo $output->display_tree_selector($company, $parentlevel, $baseurl, $params, $departmentid);
+        echo $output->display_tree_selector($company, $parentlevel, $baseurl, $params, $departmentid, false);
 
         echo html_writer::start_tag('div', ['id' => 'completion_overview_forms',
                                             'class' => 'report_completion_overview_forms',
@@ -384,7 +393,12 @@ $selectsql = "DISTINCT u.*";
 $fromsql = " {user} u JOIN {company_users} cu ON (u.id = cu.userid) JOIN {department} d ON (cu.departmentid = d.id and cu.companyid = d.company)";
 
 // Set up the headers for the form.
+// Remove page from the params and the url
 $sortparams = $params;
+unset($sortparams['page']);
+$sorturl = $baseurl;
+$sorturl->remove_params(['page']);
+// Set the sort for the headers
 if (!$bycourse) {
     $sortparams['sort'] = 'firstname';
 } else {
@@ -395,38 +409,41 @@ if ($sort == 'c.fullnamename') {
 } else {
     $sortparams['dir'] = $dir;
 }
-$coursenamesort = new moodle_url($baseurl, $sortparams);
+$coursenamesort = new moodle_url($sorturl, $sortparams);
 if ($sort == 'u.firstname') {
     $sortparams['dir'] = $reversedir;
 } else {
     $sortparams['dir'] = $dir;
 }
-$firstnamesort = new moodle_url($baseurl, $sortparams);
+$firstnamesort = new moodle_url($sorturl, $sortparams);
 $sortparams = $params;
+unset($sortparams['page']);
 $sortparams['sort'] = 'lastname';
 if ($sort == 'u.lastname') {
     $sortparams['dir'] = $reversedir;
 } else {
     $sortparams['dir'] = $dir;
 }
-$lastnamesort = new moodle_url($baseurl, $sortparams);
+$lastnamesort = new moodle_url($sorturl, $sortparams);
 $sortparams = $params;
+unset($sortparams['page']);
 $sortparams['sort'] = 'email';
 if ($sort == 'u.email') {
     $sortparams['dir'] = $reversedir;
 } else {
     $sortparams['dir'] = $dir;
 }
-$emailsort = new moodle_url($baseurl, $sortparams);
+$emailsort = new moodle_url($sorturl, $sortparams);
 $sortparams = $params;
+unset($sortparams['page']);
 $sortparams['sort'] = 'name';
 if ($sort == 'd.name') {
     $sortparams['dir'] = $reversedir;
 } else {
     $sortparams['dir'] = $dir;
 }
-$departmentsort = new moodle_url($baseurl, $sortparams);
-
+$departmentsort = new moodle_url($sorturl, $sortparams);
+// Set the headers for the form
 if (!$download) {
     if (!$bycourse) {
         $headers = [html_writer::tag('a', get_string('firstname'), ['href' => $firstnamesort]) . '&nbsp/&nbsp' . html_writer::tag('a', get_string('lastname'), ['href' => $lastnamesort]),
@@ -637,8 +654,11 @@ if (!$bycourse) {
 
 if (!$download) {
     $pagingurl = new moodle_url($baseurl, $params);
-    echo $OUTPUT->initials_bar($ifirst, 'firstinitial', get_string('firstname'), 'firstinitial', $pagingurl);
-    echo $OUTPUT->initials_bar($ilast, 'lastinitial', get_string('lastname'), 'lastinitial', $pagingurl);
+    // Create a new variable for the initials bar url and remove the page parameter
+    $initialsbarurl = $pagingurl;
+    $initialsbarurl->remove_params(['page']);
+    echo $OUTPUT->initials_bar($ifirst, 'firstinitial', get_string('firstname'), 'firstinitial', $initialsbarurl);
+    echo $OUTPUT->initials_bar($ilast, 'lastinitial', get_string('lastname'), 'lastinitial', $initialsbarurl);
     $downloadparams = $params;
     $downloadparams['download'] = true;
     echo html_writer::start_tag("div", ['class' => 'displayflex']);
@@ -706,32 +726,32 @@ if (!$bycourse) {
             if (empty($usercourse->timeenrolled)) {
                 $coursesummary['enrolled'] = get_string('never');
             } else {
-                $coursesummary['enrolled'] = date($CFG->iomad_date_format, $usercourse->timeenrolled);
+                $coursesummary['enrolled'] = userdate($usercourse->timeenrolled, $CFG->iomad_date_format);
             }
             if (empty($usercourse->timestarted)) {
                 $coursesummary['timestarted'] = get_string('never');
             } else {
-                $coursesummary['timestarted'] = date($CFG->iomad_date_format, $usercourse->timestarted);
+                $coursesummary['timestarted'] = userdate($usercourse->timestarted, $CFG->iomad_date_format);
             }
             if (empty($usercourse->timecompleted)) {
                 $coursesummary['timecompleted'] = get_string('never');
             } else {
-                $coursesummary['timecompleted'] = date($CFG->iomad_date_format, $usercourse->timecompleted);
+                $coursesummary['timecompleted'] = userdate($usercourse->timecompleted, $CFG->iomad_date_format);
             }
             if (empty($usercourse->lastcompleted)) {
                 $coursesummary['lastcompleted'] = get_string('never');
             } else {
-                $coursesummary['lastcompleted'] = date($CFG->iomad_date_format, $usercourse->lastcompleted);
+                $coursesummary['lastcompleted'] = userdate($usercourse->lastcompleted, $CFG->iomad_date_format);
             }
             if (empty($usercourse->timeexpires)) {
                 $coursesummary['timeexpires'] = '';
             } else {
-                $coursesummary['timeexpires'] = date($CFG->iomad_date_format, $usercourse->timeexpires);
+                $coursesummary['timeexpires'] = userdate($usercourse->timeexpires, $CFG->iomad_date_format);
             }
             if (empty($usercourse->timeexpired)) {
                 $coursesummary['timeexpired'] = '';
             } else {
-                $coursesummary['timeexpired'] = date($CFG->iomad_date_format, $usercourse->timeexpired);
+                $coursesummary['timeexpired'] = userdate($usercourse->timeexpired, $CFG->iomad_date_format);
             }
             $coursesummary['finalscore'] = $usercourse->finalscore;
 
@@ -851,32 +871,32 @@ if (!$bycourse) {
             if (empty($usercourse->timeenrolled)) {
                 $coursesummary['enrolled'] = get_string('never');
             } else {
-                $coursesummary['enrolled'] = date($CFG->iomad_date_format, $usercourse->timeenrolled);
+                $coursesummary['enrolled'] = userdate($usercourse->timeenrolled, $CFG->iomad_date_format);
             }
             if (empty($usercourse->timestarted)) {
                 $coursesummary['timestarted'] = get_string('never');
             } else {
-                $coursesummary['timestarted'] = date($CFG->iomad_date_format, $usercourse->timestarted);
+                $coursesummary['timestarted'] = userdate($usercourse->timestarted, $CFG->iomad_date_format);
             }
             if (empty($usercourse->timecompleted)) {
                 $coursesummary['timecompleted'] = get_string('never');
             } else {
-                $coursesummary['timecompleted'] = date($CFG->iomad_date_format, $usercourse->timecompleted);
+                $coursesummary['timecompleted'] = userdate($usercourse->timecompleted, $CFG->iomad_date_format);
             }
             if (empty($usercourse->lastcompleted)) {
                 $coursesummary['lastcompleted'] = get_string('never');
             } else {
-                $coursesummary['lastcompleted'] = date($CFG->iomad_date_format, $usercourse->lastcompleted);
+                $coursesummary['lastcompleted'] = userdate($usercourse->lastcompleted, $CFG->iomad_date_format);
             }
             if (empty($usercourse->timeexpires)) {
                 $coursesummary['timeexpires'] = '';
             } else {
-                $coursesummary['timeexpires'] = date($CFG->iomad_date_format, $usercourse->timeexpires);
+                $coursesummary['timeexpires'] = userdate($usercourse->timeexpires, $CFG->iomad_date_format);
             }
             if (empty($usercourse->timeexpired)) {
                 $coursesummary['timeexpired'] = '';
             } else {
-                $coursesummary['timeexpired'] = date($CFG->iomad_date_format, $usercourse->timeexpired);
+                $coursesummary['timeexpired'] = userdate($usercourse->timeexpired, $CFG->iomad_date_format);
             }
             $coursesummary['finalscore'] = $usercourse->finalscore;
 

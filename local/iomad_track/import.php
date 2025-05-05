@@ -212,10 +212,10 @@ if (!empty($fileimport)) {
                             $upt->track('course', $courserec->fullname);
                         } else if (strpos($key, 'time') !== false) {
                             $completionrec->$key = strtotime($value);
-                            $upt->track($key, date($CFG->iomad_date_format, $completionrec->$key));
+                            $upt->track($key, userdate($completionrec->$key, $CFG->iomad_date_format));
                         } else if (strpos($key, 'licenseallocated') !== false) {
                             $completionrec->$key = strtotime($value);
-                            $upt->track($key, date($CFG->iomad_date_format, $completionrec->$key));
+                            $upt->track($key, userdate($completionrec->$key, $CFG->iomad_date_format));
                         } else {
                             $completionrec->$key = $value;
                             if (in_array($key, $upt->columns)) {
@@ -270,11 +270,11 @@ if (!empty($fileimport)) {
                 }
                 if (empty($completionrec->timeenrolled)) {
                     $completionrec->timeenrolled = $completionrec->timecompleted;
-                    $upt->track('timeenrolled', date($CFG->iomad_date_format, $completionrec->timeenrolled));
+                    $upt->track('timeenrolled', userdate($completionrec->timeenrolled, $CFG->iomad_date_format));
                 }
                 if (empty($completionrec->timestarted)) {
                     $completionrec->timestarted = $completionrec->timecompleted;
-                    $upt->track('timestarted', date($CFG->iomad_date_format, $completionrec->timestarted));
+                    $upt->track('timestarted', userdate($completionrec->timestarted, $CFG->iomad_date_format));
                 }
                 if ($DB->get_record('iomad_courses', array('courseid' => $courserec->id, 'licensed' => 1))) {
                     if (empty($completionrec->licensename)) {
@@ -289,7 +289,7 @@ if (!empty($fileimport)) {
                 }
                 if (empty($completionrec->licenseallocated) && !empty($completionrec->licensename)) {
                     $completionrec->licenseallocated = $completionrec->timecompleted;
-                    $upt->track('licenseallocated', date($CFG->iomad_date_format, $completionrec->timeenrolled));
+                    $upt->track('licenseallocated', userdate($completionrec->timeenrolled, $CFG->iomad_date_format));
                 }
                 $completionrec->modifiedtime = $runtime;
                 $completionrec->coursecleared = 1;
@@ -342,8 +342,7 @@ echo $OUTPUT->header();
 echo html_writer::start_tag('p');
 echo html_writer::tag('a',
                       get_string('checkcoursestatusmoodle', 'local_iomad_track'),
-                      array('class' => 'btn-primary',
-                            'href' => new moodle_url('/local/iomad_track/import.php',
+                      array('href' => new moodle_url('/local/iomad_track/import.php',
                                                      array('checkcourses' => true,
                                                            'sesskey' => sesskey()))));
 
@@ -386,8 +385,7 @@ echo html_writer::end_tag('p');
 echo html_writer::start_tag('p');
 echo html_writer::tag('a',
                       get_string('importcompletionsfrommoodle', 'local_iomad_track'),
-                      array('class' => 'btn-primary',
-                            'href' => new moodle_url('/local/iomad_track/import.php',
+                      array('href' => new moodle_url('/local/iomad_track/import.php',
                                                      array('completions' => true,
                                                            'sesskey' => sesskey()))));
 
@@ -395,8 +393,7 @@ echo html_writer::end_tag('p');
 echo html_writer::start_tag('p');
 echo html_writer::tag('a',
                       get_string('importcompletionsfromfile', 'local_iomad_track'),
-                      array('class' => 'btn-primary',
-                            'href' => new moodle_url('/local/iomad_track/import.php',
+                      array('href' => new moodle_url('/local/iomad_track/import.php',
                                                      array('fileimport' => true,
                                                            'sesskey' => sesskey()))));
 echo html_writer::end_tag('p');
