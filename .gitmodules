@@ -52,3 +52,6 @@
 [submodule "report/customsql"]
 	path = report/customsql
 	url = https://github.com/Health-and-Safety-Solution/moodle-report_customsql.git
+[submodule "blocks/iomad_comments"]
+	path = blocks/iomad_comments
+	url = https://github.com/Health-and-Safety-Solution/iomad_comments.git
