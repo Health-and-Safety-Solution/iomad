@@ -361,6 +361,21 @@ class helper {
         }
     }
 
+    public static function update_invoice_line($invoiceid, $lineid, $quantity, $price) {
+        global $DB;
+
+        $params = [
+            'id'        => $lineid,
+            'invoiceid' => $invoiceid
+        ];
+
+        $line = $DB->get_record('invoiceitem', $params, '*', MUST_EXIST);
+        $line->license_allocation = $quantity;
+        $line->price = $price;
+
+        $DB->update_record('invoiceitem', $line);
+    }
+
     public static function get_invoice_html($invoiceid, $includeremove = 0, $links = 1, $showprocessed = 0) {
         global $DB, $USER, $CFG;
 
@@ -368,34 +383,34 @@ class helper {
         $multiplecurrency = false;
         $currentcurrency = '';
 
-        /*if ($basketitems = $DB->get_records_sql('SELECT ii.*, css.name
+        $editline = optional_param('editline', null, PARAM_INT);
+        $addline = optional_param('addline', null, PARAM_INT);
+         /*if ($basketitems = $DB->get_records_sql('SELECT ii.*, css.name
                                                 FROM {invoiceitem} ii
                                                     INNER JOIN {course_shopsettings} css ON ii.invoiceableitemid = css.id
                                                 WHERE ii.invoiceid = :invoiceid
                                                 ORDER BY ii.id
                                                ', array('invoiceid' => $invoiceid))) {*/
 
-	
-               if ($basketitems = $DB->get_records_sql('SELECT ii.*, css.name, csc.courseid, i.reference AS invoice_reference
+
+                if ($basketitems = $DB->get_records_sql('SELECT ii.*, css.name, csc.courseid, i.reference AS invoice_reference
                                                 FROM {invoiceitem} ii
                                                     INNER JOIN {course_shopsettings} css ON ii.invoiceableitemid = css.id
                                                     LEFT JOIN {invoice} i ON i.id = ii.invoiceid
                                                     LEFT JOIN {course_shopsettings_courses} csc ON ii.invoiceableitemid = csc.itemid
                                                 WHERE ii.invoiceid = :invoiceid
-                                                ORDER BY ii.id
-                                               ', array('invoiceid' => $invoiceid))) {
+                                                ORDER BY ii.id', array('invoiceid' => $invoiceid))) {
             $table = new html_table();
-            $table->head = array (get_string('course'),
-                                  "",
-                                  get_string('unitprice', 'block_iomad_commerce'),
-                                  get_string('amount', 'block_iomad_commerce')
-                                 );
-
+            $table->head = array (
+                get_string('course'),
+                "",
+                get_string('unitprice', 'block_iomad_commerce'),
+                get_string('amount', 'block_iomad_commerce')
+            );
             if(basename($_SERVER['SCRIPT_NAME']) == 'edit_order_form.php') {
-            	$table->head[] = get_string('action');
-	    }
-
-	    if ($includeremove) {
+                $table->head[] = get_string('action');
+            }
+            if ($includeremove) {
                 $table->head[] = "";
             }
             if ($showprocessed) {
@@ -425,82 +440,108 @@ class helper {
                 } else {
                     $currentcurrency = $item->currency;
                 }
-		if((basename($_SERVER['SCRIPT_NAME']) == 'edit_order_form.php') && !(empty($item->invoice_reference))){
-			$allocatebutton = "";
-			$unallocatebutton = "";
-                	$sqllicense = "SELECT cl.*, cu.courseid as courseid, cu.licenseid AS licenseid FROM {companylicense} cl LEFT JOIN {companylicense_courses} cu ON (cu.licenseid = cl.id) WHERE cl.reference = '".$item->invoice_reference."' AND cu.courseid = ".$item->courseid. " AND cu.licenseid != 0";
-                	$licensedata = $DB->get_record_sql($sqllicense);
-                	if(($licensedata->humanallocation <= $licensedata->used) && (!(empty($licensedata->licenseid)))){
-				if($licensedata->expirydate > time()) {
-                    			$companyid = \iomad::get_my_companyid(\context_system::instance());
-			    		$licenseuserData = $DB->get_records_sql("SELECT userid, isusing FROM {companylicense_users} WHERE licenseid = ".$licensedata->licenseid);
-        	            		$Licenseusername = '';
-                	    		if($licenseuserData) {
-                        			foreach($licenseuserData as $licenseUser) {
-                            				$userData = get_complete_user_data('id', $licenseUser->userid);
-                            				$Licenseusername .= $userData->username.', ';
-	                        		}
-        	                		$Licenseusername = rtrim($Licenseusername, ', ');
-                	    		}
 
-                    			if($companyid) {
-                        			$companycontext = \core\context\company::instance($companyid);
-                        			if(iomad::has_capability('block/iomad_company_admin:allocate_licenses', $companycontext)) {
-                            				$unallocatebutton = "<a class='btn btn-primary' target='_blank' title='".$Licenseusername."' style='margin-left: 0.5em' href='".
-                                				new moodle_url('/blocks/iomad_company_admin/company_license_users_form.php', array('licenseid' => $licensedata->licenseid)) ."'>".get_string('unallocateCoursePlace', 'block_iomad_ecommerce')."</a>";
-	                        		} else {
-        	                    			$unallocatebutton = "";
-                	        		}
-                    			} else {
-                        			if(iomad::has_capability('block/iomad_company_admin:allocate_licenses', $context)) {
-                            				$unallocatebutton = "<a class='btn btn-primary' target='_blank' title='".$Licenseusername."' style='margin-left: 0.5em' href='".
-                                				new moodle_url('/blocks/iomad_company_admin/company_license_users_form.php', array('licenseid' => $licensedata->licenseid)) ."'>".get_string('unallocateCoursePlace', 'block_iomad_ecommerce')."</a>";
-	                        		} else {
-        	                    			$unallocatebutton = "";
-                	        		}
-                    			}
-				}
-			}
+                // Save/Cancel overrides entire action cell when editing
+                $actionhtml = "";
+                $editing = (basename($_SERVER['SCRIPT_NAME']) == 'edit_order_form.php') && ($editline == $item->id);
 
-                	if(($licensedata->humanallocation > $licensedata->used) && (!(empty($licensedata->licenseid)))){
-                    		if($licensedata->expirydate > time()) {
-                        		$companyid = \iomad::get_my_companyid(\context_system::instance());
-	                    		if($companyid) {
-        	                		$companycontext = \core\context\company::instance($companyid);
-                	        		if(iomad::has_capability('block/iomad_company_admin:allocate_licenses', $companycontext)) {
-                        	    			$allocatebutton = "<a class='btn btn-primary' target='_blank' style='margin-left: 0.5em' href='".
-                                				new moodle_url('/blocks/iomad_company_admin/company_license_users_form.php', array('licenseid' => $licensedata->licenseid)) ."'>".get_string('allocateCoursePlace', 'block_iomad_ecommerce')."</a>";
-                        			} else {
-                            				$allocatebutton = "";
-	                        		}
-        	            		} else {
-                	        		if(iomad::has_capability('block/iomad_company_admin:allocate_licenses', $context)) {
-                        	    			$allocatebutton = "<a class='btn btn-primary' target='_blank' style='margin-left: 0.5em' href='".
-                                				new moodle_url('/blocks/iomad_company_admin/company_license_users_form.php', array('licenseid' => $licensedata->licenseid)) ."'>".get_string('allocateCoursePlace', 'block_iomad_ecommerce')."</a>";
-                        			} else {
-                            				$allocatebutton = "";
-	                        		}
-        	            		}
-                	    	} else {
-                        		$allocatebutton = '';
-                    		}
-	                }
-			if (empty($licensedata->licenseid)) {
-        	        	$allocatebutton = "<a class='btn btn-primary' style='margin-left: 0.5em' href='".
-                	    	new moodle_url('/blocks/iomad_commerce/edit_order_form.php?id='.$invoiceid)."'>Click to Process</a>";
-                	}
-		}
-		//var_dump($item->license_startdate);exit;
-                $row = array(
-                    ($links ? "<a href='" . new moodle_url($CFG->wwwroot . '/blocks/iomad_commerce/item.php', ['itemid' => $item->invoiceableitemid]) ."'>" .$item->name ."</a>" : $item->name),
-                    get_string('type_quantity_' . ($item->license_allocation > 1 ? 'n' : '1') .
-                    '_' . $item->invoiceableitemtype, 'block_iomad_commerce', $item->license_allocation),
-                    $unitprice,
-                    $item->currency . ' ' .number_format($rowtotal, 2)
-                );
-		if(basename($_SERVER['SCRIPT_NAME']) == 'edit_order_form.php') {
-			$row[] = $allocatebutton.' '.$unallocatebutton;
-		}
+                if((basename($_SERVER['SCRIPT_NAME']) == 'edit_order_form.php') && !(empty($item->invoice_reference))) {
+                    $allocatebutton = "";
+                    $unallocatebutton = "";
+                    $sqllicense = "SELECT cl.*, cu.courseid as courseid, cu.licenseid AS licenseid FROM {companylicense} cl LEFT JOIN {companylicense_courses} cu ON (cu.licenseid = cl.id) WHERE cl.reference = '".$item->invoice_reference."' AND cu.courseid = ".$item->courseid. " AND cu.licenseid != 0";
+                    $licensedata = $DB->get_record_sql($sqllicense);
+
+                    if(($licensedata->humanallocation <= $licensedata->used) && (!(empty($licensedata->licenseid)))){
+                        if($licensedata->expirydate > time()) {
+                            $companyid = \iomad::get_my_companyid(\context_system::instance());
+                            $licenseuserData = $DB->get_records_sql("SELECT userid, isusing FROM {companylicense_users} WHERE licenseid = ".$licensedata->licenseid);
+                            $Licenseusername = '';
+                            if($licenseuserData) {
+                                foreach($licenseuserData as $licenseUser) {
+                                    $userData = get_complete_user_data('id', $licenseUser->userid);
+                                    $Licenseusername .= $userData->username.', ';
+                                }
+                                $Licenseusername = rtrim($Licenseusername, ', ');
+                            }
+                            if($companyid) {
+                                $companycontext = \core\context\company::instance($companyid);
+                                if(iomad::has_capability('block/iomad_company_admin:allocate_licenses', $companycontext)) {
+                                    $unallocatebutton = "<a class='btn btn-primary' target='_blank' title='".$Licenseusername."' style='margin-left: 0.5em' href='".new moodle_url('/blocks/iomad_company_admin/company_license_users_form.php', array('licenseid' => $licensedata->licenseid)) ."'>".get_string('unallocateCoursePlace', 'block_iomad_ecommerce')."</a>";
+                                } else {
+                                    $unallocatebutton = "";
+                                }
+                            } else {
+                                if(iomad::has_capability('block/iomad_company_admin:allocate_licenses', $context)) {
+                                    $unallocatebutton = "<a class='btn btn-primary' target='_blank' title='".$Licenseusername."' style='margin-left: 0.5em' href='".new moodle_url('/blocks/iomad_company_admin/company_license_users_form.php', array('licenseid' => $licensedata->licenseid)) ."'>".get_string('unallocateCoursePlace', 'block_iomad_ecommerce')."</a>";
+                                } else {
+                                    $unallocatebutton = "";
+                                }
+                            }
+                        }
+                    }
+
+                    if(($licensedata->humanallocation > $licensedata->used) && (!(empty($licensedata->licenseid)))) {
+                        if($licensedata->expirydate > time()) {
+                            $companyid = \iomad::get_my_companyid(\context_system::instance());
+                            if($companyid) {
+                                $companycontext = \core\context\company::instance($companyid);
+                                if(iomad::has_capability('block/iomad_company_admin:allocate_licenses', $companycontext)) {
+                                    $allocatebutton = "<a class='btn btn-primary' target='_blank' style='margin-left: 0.5em' href='".new moodle_url('/blocks/iomad_company_admin/company_license_users_form.php', array('licenseid' => $licensedata->licenseid)) ."'>".get_string('allocateCoursePlace', 'block_iomad_ecommerce')."</a>";
+                                } else {
+                                    $allocatebutton = "";
+                                }
+                            } else {
+                                if(iomad::has_capability('block/iomad_company_admin:allocate_licenses', $context)) {
+                                    $allocatebutton = "<a class='btn btn-primary' target='_blank' style='margin-left: 0.5em' href='".new moodle_url('/blocks/iomad_company_admin/company_license_users_form.php', array('licenseid' => $licensedata->licenseid)) ."'>".get_string('allocateCoursePlace', 'block_iomad_ecommerce')."</a>";
+                                } else {
+                                    $allocatebutton = "";
+                                }
+                            }
+                        }
+                    }
+                    if (empty($licensedata->licenseid)) {
+                        $allocatebutton = "<a class='btn btn-primary' style='margin-left: 0.5em' href='".new moodle_url('/blocks/iomad_commerce/edit_order_form.php?id='.$invoiceid)."'>Click to Process</a>";
+                    }
+                }
+
+                // Action cell content (with Edit or Save/Cancel)
+                if ($editing) {
+                    $actionhtml = "
+                        <form method='post' style='display:inline;'>
+                            <input type='hidden' name='editline' value='{$item->id}' />
+                            <button type='submit' name='save_line' value='{$item->id}' class='btn btn-success btn-sm'>Save</button>
+                            <a href='?id={$invoiceid}' class='btn btn-secondary btn-sm'>Cancel</a>
+                        </form>
+                    ";
+                } else if(basename($_SERVER['SCRIPT_NAME']) == 'edit_order_form.php') {
+                    // Show both "Click to Process" and Edit
+                    $actionhtml = $allocatebutton.' '.$unallocatebutton;
+                    $actionhtml .= " <a href='?id={$invoiceid}&editline={$item->id}' class='btn btn-link btn-sm'>Edit</a>";
+                }
+
+                // Prepare row with input fields if editing this line, else as before
+                if ($editing) {
+                    $row = array(
+                        ($links ? "<a href='" . new moodle_url($CFG->wwwroot . '/blocks/iomad_commerce/item.php', ['itemid' => $item->invoiceableitemid]) ."'>" .$item->name ."</a>" : $item->name),
+                        "<form method='post' style='display:inline;'>
+                            <input type='hidden' name='editline' value='{$item->id}' />
+                            <input type='number' name='quantity' value='" . (int)$item->license_allocation . "' min='1' style='width:60px;' />",
+                        "<input type='number' name='price' value='" . htmlspecialchars($item->price) . "' step='0.01' min='0' style='width:70px;' />",
+                        $item->currency . ' ' .number_format($rowtotal, 2),
+                        $actionhtml
+                    );
+                } else {
+                    $row = array(
+                        ($links ? "<a href='" . new moodle_url($CFG->wwwroot . '/blocks/iomad_commerce/item.php', ['itemid' => $item->invoiceableitemid]) ."'>" .$item->name ."</a>" : $item->name),
+                        get_string('type_quantity_' . ($item->license_allocation > 1 ? 'n' : '1') . '_' . $item->invoiceableitemtype, 'block_iomad_commerce', $item->license_allocation),
+                        $unitprice,
+                        $item->currency . ' ' .number_format($rowtotal, 2)
+                    );
+                    if(basename($_SERVER['SCRIPT_NAME']) == 'edit_order_form.php') {
+                        $row[] = $actionhtml;
+                    }
+                }
+
                 if ($includeremove) {
                     $row[] = "<a href='basket.php?remove=$item->id'><i class='icon fa fa-trash fa-fw ' title='" . get_string('remove') ."' role='img' aria-label='". get_string('remove') ."'></i></a>";
                 }
@@ -518,6 +559,26 @@ class helper {
                 $total += $rowtotal;
             }
 
+            // Add line input row for addline=1
+            if (basename($_SERVER['SCRIPT_NAME']) == 'edit_order_form.php' && $addline) {
+                $formstart = "<form method='post' style='margin:0;'>";
+                $formend = "</form>";
+                $submit_buttons = "
+                    <button type='submit' name='add_line_submit' class='btn btn-success btn-sm'>Save</button>
+                    <a href='?id={$invoiceid}' class='btn btn-secondary btn-sm'>Cancel</a>
+                ";
+                $row = array(
+                    $formstart .
+                    '<input type="hidden" name="id" value="' . $invoiceid . '" />' .
+                    '<input type="text" name="new_course_name" placeholder="Enter course name" required style="width:160px;" />',
+                    "<input type='number' name='new_quantity' value='1' min='1' style='width:60px;' />",
+                    "<input type='number' name='new_price' value='0.00' step='0.01' min='0' style='width:70px;' />",
+                    "",
+                    $submit_buttons . $formend
+                );
+                $table->data[] = $row;
+            }
+
             if (!$multiplecurrency) {
                 $totalrow = array(
                     '<b>' . get_string('total', 'block_iomad_commerce') . '</b>',
@@ -525,9 +586,9 @@ class helper {
                     '',
                     '<b>' . $currency . ' ' . number_format($total, 2) . '</b>'
                 );
-		if(basename($_SERVER['SCRIPT_NAME']) == 'edit_order_form.php') {
-			$totalrow[] = '';
-		}
+                if(basename($_SERVER['SCRIPT_NAME']) == 'edit_order_form.php') {
+                    $totalrow[] = '';
+                }
             } else {
                 $totalrow = ['','','',''];
             }
