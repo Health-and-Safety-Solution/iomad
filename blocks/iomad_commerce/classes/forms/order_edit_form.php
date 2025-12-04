@@ -64,7 +64,13 @@ class order_edit_form extends moodleform {
 
         $mform->addElement('header', 'header', get_string('order', 'block_iomad_commerce'));
 
-        $mform->addElement('static', 'reference', get_string('reference', 'block_iomad_commerce'));
+        if ($this->editmode) {
+            $mform->addElement('text', 'reference', get_string('reference', 'block_iomad_commerce'));
+            $mform->setType('reference', PARAM_RAW_TRIMMED);
+            $mform->addRule('reference', get_string('required'), 'required', null, 'client');
+        } else {
+            $mform->addElement('static', 'reference', get_string('reference', 'block_iomad_commerce'));
+        }
 
         $po_detail = $DB->get_record_sql("select po,mdl_blocks_ecommerce_status.status from mdl_paygw_po LEFT JOIN mdl_blocks_ecommerce_status ON  mdl_paygw_po.invoiceid = mdl_blocks_ecommerce_status.invoiceid WHERE mdl_paygw_po.invoiceid=" . $this->invoiceid);
         if ($po_detail) {

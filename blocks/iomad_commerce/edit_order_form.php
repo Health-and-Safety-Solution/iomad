@@ -166,6 +166,7 @@ if ($mform->is_cancelled()) {
     $updatedinvoice->country = $data->country;
     $updatedinvoice->email = $data->email;
     $updatedinvoice->phone1 = $data->phone1;
+    $updatedinvoice->reference = $data->reference;
 
     $DB->update_record('block_iomad_commerce_invoice', $updatedinvoice);
 
