@@ -1,0 +1,19 @@
+{{< core/modal }}
+    {{$title}}{{#str}} setup {{/str}}{{/title}}
+    {{$body}}
+        <div class="container">
+            <form>
+                <div class="form-group row">
+                    <label for="inputTenantnameorguid" class="col-sm-2 col-form-label">{{#str}} tenantnameorguid, local_iomad_oidc_sync {{/str}}</label>
+                    <div class="col-sm-10">
+                        <input type="text" class="form-control" id="inputTenantnameorguid">
+                    </div>
+                </div>
+            </form>
+        </div>
+    {{/body}}
+    {{$footer}}
+        <button type="button" class="btn btn-primary" data-action="save">{{#str}} save {{/str}}</button>
+        <button type="button" class="btn btn-secondary" data-action="cancel">{{#str}} cancel {{/str}}</button>
+    {{/footer}}
+{{/ core/modal }}

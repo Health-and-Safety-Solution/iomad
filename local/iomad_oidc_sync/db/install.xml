@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<XMLDB PATH="local/iomad_oidc_sync/db" VERSION="20241222" COMMENT="XMLDB file for Moodle local/iomad_oidc_sync"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:noNamespaceSchemaLocation="../../../lib/xmldb/xmldb.xsd"
+>
+  <TABLES>
+    <TABLE NAME="local_iomad_oidc_sync" COMMENT="Holds the settings required by the local IOMAD OIDC sync plugins">
+      <FIELDS>
+        <FIELD NAME="id" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="true"/>
+        <FIELD NAME="companyid" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="false" COMMENT="id from company table"/>
+        <FIELD NAME="tenantnameorguid" TYPE="char" LENGTH="255" NOTNULL="false" SEQUENCE="false" COMMENT="Companies Tenant name or GUID as defined in Azure."/>
+        <FIELD NAME="syncgroupid" TYPE="char" LENGTH="255" NOTNULL="false" SEQUENCE="false" COMMENT="Object ID of the group to be synchronized"/>
+        <FIELD NAME="approved" TYPE="int" LENGTH="1" NOTNULL="true" DEFAULT="0" SEQUENCE="false" COMMENT="set to 1 if approval has been given 0 otherwise"/>
+        <FIELD NAME="enabled" TYPE="int" LENGTH="1" NOTNULL="true" DEFAULT="0" SEQUENCE="false"/>
+        <FIELD NAME="useroption" TYPE="int" LENGTH="1" NOTNULL="true" DEFAULT="0" SEQUENCE="false" COMMENT="field to determine what happens with user accounts that no longer exist. 0 - do nothing 1 - suspend 2 - delete"/>
+        <FIELD NAME="unsuspendonsync" TYPE="int" LENGTH="1" NOTNULL="true" DEFAULT="0" SEQUENCE="false" COMMENT="Do we un-suspend suspended users when we sync."/>
+      </FIELDS>
+      <KEYS>
+        <KEY NAME="primary" TYPE="primary" FIELDS="id"/>
+      </KEYS>
+    </TABLE>
+  </TABLES>
+</XMLDB>
