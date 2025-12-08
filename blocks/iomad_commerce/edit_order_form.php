@@ -168,7 +168,7 @@ if ($mform->is_cancelled()) {
     $updatedinvoice->phone1 = $data->phone1;
     $updatedinvoice->reference = $data->reference;
 
-    $DB->update_record('block_iomad_commerce_invoice', $updatedinvoice);
+    $DB->update_record('invoice', $updatedinvoice);
 
     redirect(new moodle_url('/blocks/iomad_commerce/edit_order_form.php', ['id' => $invoiceid]));
 } else {
