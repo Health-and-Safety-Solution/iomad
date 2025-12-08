@@ -119,6 +119,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['save_line'])) {
     // Update your invoice item in DB here
     \block_iomad_commerce\helper::update_invoice_line($invoiceid, $editline, $quantity, $price);
 
+    $map = $DB->get_record('iomad_xero_invoice', ['invoiceid' => $invoiceid]);
+    if ($map) {
+        $map->needs_update = 1;
+        $map->modified_date = time();
+        $DB->update_record('iomad_xero_invoice', $map);
+    }
+
     redirect(new moodle_url('/blocks/iomad_commerce/edit_order_form.php', ['id' => $invoiceid]));
     exit;
 }
@@ -142,6 +149,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['add_line_submit'])) 
         $newitem->currency             = 'GBP';
 
         $DB->insert_record('invoiceitem', $newitem);
+
+        $map = $DB->get_record('iomad_xero_invoice', ['invoiceid' => $invoiceid]);
+        if ($map) {
+            $map->needs_update = 1;
+            $map->modified_date = time();
+            $DB->update_record('iomad_xero_invoice', $map);
+        }
 
         redirect(new moodle_url('/blocks/iomad_commerce/edit_order_form.php', ['id' => $invoiceid]));
         exit;
