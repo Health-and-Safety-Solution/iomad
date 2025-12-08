@@ -170,6 +170,13 @@ if ($mform->is_cancelled()) {
 
     $DB->update_record('invoice', $updatedinvoice);
 
+    $map = $DB->get_record('iomad_xero_invoice', ['invoiceid' => $invoiceid]);
+    if ($map) {
+        $map->needs_update = 1;
+        $map->modified_date = time();
+        $DB->update_record('iomad_xero_invoice', $map);
+    }
+
     redirect(new moodle_url('/blocks/iomad_commerce/edit_order_form.php', ['id' => $invoiceid]));
 } else {
 
