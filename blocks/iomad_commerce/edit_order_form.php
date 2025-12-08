@@ -49,6 +49,27 @@ $company = new company($companyid);
 
 $invoice = \block_iomad_commerce\helper::get_invoice($invoiceid);
 
+$cancelinvoice = optional_param('cancelinvoice', 0, PARAM_BOOL);
+if ($cancelinvoice) {
+
+    $invoice->status = 'c';
+    $DB->update_record('invoice', $invoice);
+
+    $map = $DB->get_record('iomad_xero_invoice', ['invoiceid' => $invoiceid]);
+    if ($map) {
+        $map->needs_update = 2; // 2 meaning "cancelled invoice"
+        $map->modified_date = time();
+        $DB->update_record('iomad_xero_invoice', $map);
+    }
+
+    redirect(
+        new moodle_url('/blocks/iomad_ecommerce/order.php'),
+        "Invoice cancelled successfully",
+        3
+    );
+    exit;
+}
+
 if ($invoice->companyid != $companyid) {
     $SESSION->basketid = null;
     redirect($CFG->wwwroot . '/my', get_string('invoiceblongsToanotherCompany', 'block_iomad_ecommerce'), '', 'error');
@@ -199,7 +220,10 @@ if ($mform->is_cancelled()) {
     echo '<div class="mb-3" style="display:flex;gap:8px;flex-wrap:wrap">';
     echo '<a href="' . (new moodle_url('/blocks/iomad_commerce/edit_order_form.php', ['id' => $invoiceid, 'editmode' => 1]))->out() . '" class="btn btn-secondary">Edit</a>';
     echo '<a href="' . (new moodle_url('/blocks/iomad_commerce/edit_order_form.php', ['id' => $invoiceid, 'addline' => 1]))->out() . '" class="btn btn-secondary">Add Line</a>';
-    echo '<a href="#" class="btn btn-secondary" onclick="return false;">Cancel</a>';
+    echo '<a href="' . (new moodle_url('/blocks/iomad_commerce/edit_order_form.php', [
+        'id' => $invoiceid,
+        'cancelinvoice' => 1
+    ]))->out() . '" class="btn btn-danger">Cancel Invoice</a>';
     echo '<a href="#" class="btn btn-primary" onclick="return false;">Generate Invoice</a>';
     echo '</div>';
 
