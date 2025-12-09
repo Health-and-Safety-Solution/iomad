@@ -55,6 +55,17 @@ if ($cancelinvoice) {
     $invoice->status = 'c';
     $DB->update_record('invoice', $invoice);
 
+    $ecomm = $DB->get_record('blocks_ecommerce_status', ['invoiceid' => $invoiceid]);
+    if ($ecomm) {
+        $ecomm->status = 'c';
+        $DB->update_record('blocks_ecommerce_status', $ecomm);
+    } else {
+        $insert = new stdClass();
+        $insert->invoiceid = $invoiceid;
+        $insert->status = 'c';
+        $DB->insert_record('blocks_ecommerce_status', $insert);
+    }
+
     $map = $DB->get_record('iomad_xero_invoice', ['invoiceid' => $invoiceid]);
     if ($map) {
         $map->needs_update = 2; // 2 meaning "cancelled invoice"
