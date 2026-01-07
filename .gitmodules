@@ -10,3 +10,6 @@
 [submodule "blocks/iomad_actions_widget"]
 	path = blocks/iomad_actions_widget
 	url = https://github.com/Health-and-Safety-Solution/iomad_actions_widget.git
+[submodule "payment/gateway/stripe"]
+	path = payment/gateway/stripe
+	url = https://github.com/Health-and-Safety-Solution/moodle-paygw_stripe.git
