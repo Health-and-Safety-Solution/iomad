@@ -7,3 +7,6 @@
 [submodule "local/iomad_xero"]
 	path = local/iomad_xero
 	url = https://github.com/Health-and-Safety-Solution/iomad_xero.git
+[submodule "blocks/iomad_actions_widget"]
+	path = blocks/iomad_actions_widget
+	url = https://github.com/Health-and-Safety-Solution/iomad_actions_widget.git
