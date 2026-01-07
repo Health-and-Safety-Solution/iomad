@@ -1,3 +1,6 @@
 [submodule "blocks/iomad_ecommerce"]
 	path = blocks/iomad_ecommerce
 	url = https://github.com/Health-and-Safety-Solution/iomad_ecommerce.git
+[submodule "payment/gateway/po"]
+	path = payment/gateway/po
+	url = https://github.com/Health-and-Safety-Solution/paygw_po.git
