@@ -4,3 +4,6 @@
 [submodule "payment/gateway/po"]
 	path = payment/gateway/po
 	url = https://github.com/Health-and-Safety-Solution/paygw_po.git
+[submodule "local/iomad_xero"]
+	path = local/iomad_xero
+	url = https://github.com/Health-and-Safety-Solution/iomad_xero.git
