@@ -19,3 +19,6 @@
 [submodule "blocks/iomad_comments"]
 	path = blocks/iomad_comments
 	url = https://github.com/Health-and-Safety-Solution/iomad_comments.git
+[submodule "local/coursetocal"]
+	path = local/coursetocal
+	url = https://github.com/Health-and-Safety-Solution/coursetocal.git
