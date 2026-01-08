@@ -37,3 +37,6 @@
 [submodule "custom/createAssessmentPDF"]
 	path = custom/createAssessmentPDF
 	url = https://github.com/Health-and-Safety-Solution/createAssessmentPDF.git
+[submodule "report/customsql"]
+	path = report/customsql
+	url = https://github.com/Health-and-Safety-Solution/moodle-report_customsql.git
