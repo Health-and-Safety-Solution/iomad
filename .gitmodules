@@ -31,3 +31,6 @@
 [submodule "mod/checklist"]
 	path = mod/checklist
 	url = https://github.com/Health-and-Safety-Solution/moodle-checklist.git
+[submodule "mod/customcert"]
+	path = mod/customcert
+	url = https://github.com/Health-and-Safety-Solution/moodle-mod_customcert.git
