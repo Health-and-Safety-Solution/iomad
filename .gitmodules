@@ -22,3 +22,6 @@
 [submodule "local/coursetocal"]
 	path = local/coursetocal
 	url = https://github.com/Health-and-Safety-Solution/coursetocal.git
+[submodule "blocks/odk_forms"]
+	path = blocks/odk_forms
+	url = https://github.com/Health-and-Safety-Solution/odk_forms.git
