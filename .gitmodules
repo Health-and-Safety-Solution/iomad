@@ -25,3 +25,6 @@
 [submodule "blocks/odk_forms"]
 	path = blocks/odk_forms
 	url = https://github.com/Health-and-Safety-Solution/odk_forms.git
+[submodule "custom/ODK_Project_Management"]
+	path = custom/ODK_Project_Management
+	url = https://github.com/Health-and-Safety-Solution/ODK_Project_Management.git
