@@ -40,3 +40,6 @@
 [submodule "report/customsql"]
 	path = report/customsql
 	url = https://github.com/Health-and-Safety-Solution/moodle-report_customsql.git
+[submodule "auth/userkey"]
+	path = auth/userkey
+	url = https://github.com/Health-and-Safety-Solution/moodle-auth_userkey.git
