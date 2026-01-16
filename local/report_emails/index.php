@@ -209,6 +209,84 @@ $PAGE->set_title($strcompletion);
 $PAGE->requires->css("/local/report_emails/styles.css");
 $PAGE->requires->jquery();
 
+$PAGE->requires->js_amd_inline("
+require(['core/modal_factory'], function(ModalFactory) {
+
+    document.addEventListener('click', function(e) {
+        if (!e.target.classList.contains('email-body-popup')) {
+            return;
+        }
+
+        e.preventDefault();
+
+        var targetId = e.target.getAttribute('data-target');
+        var container = document.getElementById(targetId);
+
+        if (!container) {
+            return;
+        }
+
+        var bodyText = container.querySelector('.email-body-text').innerText;
+        var subjectTextValue = e.target.innerText;
+
+        ModalFactory.create({
+            title: 'Email body preview',
+            body: '',
+            large: true
+        }).then(function(modal) {
+
+            var root = modal.getRoot()[0];
+            root.classList.add('email-body-wide-modal');
+
+            var modalBody = root.querySelector('.modal-body');
+
+            var subjectRow = document.createElement('div');
+            subjectRow.style.display = 'flex';
+            subjectRow.style.justifyContent = 'space-between';
+            subjectRow.style.alignItems = 'center';
+            subjectRow.style.marginBottom = '12px';
+
+            var subjectText = document.createElement('div');
+            subjectText.innerHTML = '<strong>Subject:</strong> ' + subjectTextValue;
+
+            var copyBtn = document.createElement('button');
+            copyBtn.className = 'btn btn-secondary';
+            copyBtn.innerText = 'Copy';
+
+            subjectRow.appendChild(subjectText);
+            subjectRow.appendChild(copyBtn);
+
+            var separator = document.createElement('hr');
+            separator.style.margin = '12px 0 16px 0';
+            separator.style.borderTop = '1px solid #e0e0e0';
+
+            var contentDiv = document.createElement('div');
+            contentDiv.style.whiteSpace = 'pre-wrap';
+            contentDiv.innerText = bodyText;
+
+            copyBtn.addEventListener('click', function() {
+                navigator.clipboard.writeText(bodyText).then(function() {
+                    var original = copyBtn.innerText;
+                    copyBtn.innerText = 'Copied';
+                    copyBtn.disabled = true;
+
+                    setTimeout(function() {
+                        copyBtn.innerText = original;
+                        copyBtn.disabled = false;
+                    }, 2000);
+                });
+            });
+
+            modalBody.appendChild(subjectRow);
+            modalBody.appendChild(separator);
+            modalBody.appendChild(contentDiv);
+
+            modal.show();
+        });
+    });
+});
+");
+
 // Set the page heading.
 $PAGE->set_heading($strcompletion);
 
@@ -451,7 +529,7 @@ if (!empty($templateid)) {
 }
 
 // Set up the initial SQL for the form.
-$selectsql = " DISTINCT e.id AS emailid, u.*,cu.companyid,u.email,e.templatename, e.modifiedtime AS created, e.sent, c.id AS courseid, c.fullname AS coursename, e.senderid, e.due, e.subject";
+$selectsql = " DISTINCT e.id AS emailid, u.*,cu.companyid,u.email,e.templatename, e.modifiedtime AS created, e.sent, c.id AS courseid, c.fullname AS coursename, e.senderid, e.due, e.subject, e.body AS emailbody";
 
 $fromsql = "{user} u JOIN {email} e ON (u.id = e.userid) JOIN {company_users} cu ON (u.id = cu.userid AND e.userid = cu.userid) JOIN {department} d ON (cu.departmentid = d.id) JOIN {course} c on (e.courseid = c.id)";
 $wheresql = $searchinfo->sqlsearch . " AND cu.companyid = :companyid $templatesql $departmentsql $companysql";
