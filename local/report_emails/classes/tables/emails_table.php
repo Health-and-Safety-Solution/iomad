@@ -99,7 +99,7 @@ class emails_table extends table_sql {
             'div',
             \html_writer::tag(
                 'div',
-                format_text($row->emailbody, FORMAT_PLAIN),
+                format_text($row->emailbody, FORMAT_HTML),
                 ['class' => 'email-body-text']
             ),
             [
