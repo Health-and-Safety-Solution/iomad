@@ -262,7 +262,7 @@ require(['core/modal_factory'], function(ModalFactory) {
 
             var contentDiv = document.createElement('div');
             contentDiv.style.whiteSpace = 'pre-wrap';
-            contentDiv.innerText = bodyText;
+            contentDiv.innerHTML = bodyText;
 
             copyBtn.addEventListener('click', function() {
                 navigator.clipboard.writeText(bodyText).then(function() {
