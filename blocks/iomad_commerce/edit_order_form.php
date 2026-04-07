@@ -177,8 +177,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['add_line_submit'])) 
         $newitem->invoiceableitemid    = $courserecord->id;
         $newitem->license_allocation   = $quantity;
         $newitem->price                = $price;
-        $newitem->invoiceableitemtype  = 'standard';
+        $newitem->invoiceableitemtype  = 'singlepurchase';
         $newitem->currency             = 'GBP';
+        $newitem->processed            = 1;
 
         $DB->insert_record('invoiceitem', $newitem);
 
