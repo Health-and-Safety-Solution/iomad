@@ -78,10 +78,15 @@ class orders_table extends table_sql {
             return get_string('pluginname', 'paygw_' . $row->gateway);
         }
 
-        if ($row->status == 'p') {
-            return get_string('pp_historic', 'block_iomad_commerce');
+        if ($DB->record_exists('paygw_po', ['invoiceid' => $row->id])) {
+            return get_string('pluginname', 'paygw_po');
         }
-        return '';
+
+        if (!empty($row->status)) {
+            return get_string('status_' . $row->status, 'block_iomad_commerce');
+        }
+
+        return get_string('status_u', 'block_iomad_commerce');
     }
 
     /**

@@ -121,6 +121,7 @@ class helper {
                                             i.status = :status
                                             AND
                                             i.id = :basketid
+                                            AND ii.invoiceableitemid > 0
                                            GROUP BY
                                             i.id
                                         ', array('basketid' => $basketid, 'status' => self::INVOICESTATUS_BASKET))) {
@@ -146,6 +147,7 @@ class helper {
                                             i.status = :status
                                             AND
                                             i.id = :basketid
+                                            AND ii.invoiceableitemid > 0
                                            GROUP BY
                                             i.id
                                         ', array('basketid' => $basketid, 'status' => $status))) {

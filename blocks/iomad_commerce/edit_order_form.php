@@ -34,6 +34,7 @@ require_once($CFG->dirroot.'/blocks/iomad_ecommerce/lib.php');
 
 $returnurl = optional_param('returnurl', '', PARAM_LOCALURL);
 $invoiceid = required_param('id', PARAM_INTEGER);
+$editmode = optional_param('editmode', 0, PARAM_BOOL);
 
 require_login();
 
@@ -71,6 +72,68 @@ if(iomad::has_capability('block/iomad_commerce:admin_view', $companycontext) == 
 
 iomad::require_capability('block/iomad_commerce:admin_view', $companycontext);
 licenseUpdate();
+
+// --- Handle invoice cancellation (AFTER security checks) ---
+$cancelinvoice = optional_param('cancelinvoice', 0, PARAM_BOOL);
+if ($cancelinvoice) {
+    require_sesskey();
+    $invoice->status = 'c';
+    $DB->update_record('invoice', $invoice);
+
+    $ecomm = $DB->get_record('blocks_ecommerce_status', ['invoiceid' => $invoiceid]);
+    if ($ecomm) {
+        $ecomm->status = 'c';
+        $DB->update_record('blocks_ecommerce_status', $ecomm);
+    } else {
+        $insert = new stdClass();
+        $insert->invoiceid = $invoiceid;
+        $insert->status = 'c';
+        $DB->insert_record('blocks_ecommerce_status', $insert);
+    }
+
+    $map = $DB->get_record('iomad_xero_invoice', ['invoiceid' => $invoiceid]);
+    if ($map) {
+        $map->modified_date = time();
+        $DB->update_record('iomad_xero_invoice', $map);
+    }
+
+    redirect(
+        new moodle_url('/blocks/iomad_ecommerce/order.php'),
+        "Invoice cancelled successfully",
+        3
+    );
+    exit;
+}
+
+// --- Handle immediate Xero invoice generation (AFTER security checks) ---
+$generateinvoice = optional_param('generateinvoice', 0, PARAM_BOOL);
+if ($generateinvoice) {
+    require_sesskey();
+
+    if ($invoice->status === 'c') {
+        redirect(
+            new moodle_url('/blocks/iomad_commerce/edit_order_form.php', ['id' => $invoiceid]),
+            'Cancelled invoices cannot be generated',
+            3,
+            \core\output\notification::NOTIFY_ERROR
+        );
+        exit;
+    }
+
+    require_once($CFG->dirroot . '/local/iomad_xero/lib.php');
+    ob_start();
+    task_xero($invoiceid);
+    ob_end_clean();
+
+    redirect(
+        new moodle_url('/blocks/iomad_commerce/edit_order_form.php', ['id' => $invoiceid]),
+        'Invoice generation triggered successfully',
+        3,
+        \core\output\notification::NOTIFY_SUCCESS
+    );
+    exit;
+}
+
 $urlparams = array();
 if ($returnurl) {
     $urlparams['returnurl'] = $returnurl;
@@ -87,44 +150,141 @@ $linktext = get_string('orders', 'block_iomad_commerce');
 $linkurl = new moodle_url('/blocks/iomad_ecommerce/order.php');
 // Print the page header.
 $PAGE->set_context($companycontext);
-$PAGE->set_url($linkurl);
+$PAGE->set_url(new moodle_url('/blocks/iomad_commerce/edit_order_form.php', ['id' => $invoiceid, 'editmode' => $editmode]));
 $PAGE->set_pagelayout('base');
 $PAGE->set_title($linktext);
 $PAGE->set_heading(get_string('edit_invoice', 'block_iomad_commerce'));
-$PAGE->navbar->add($linktext, $linkurl);
+$PAGE->navbar->add($linktext, $companylist);
 $PAGE->navbar->add(get_string('edit_invoice', 'block_iomad_commerce'));
 
 if (empty($invoice->paymentid)) {
-    $invoice->checkout_method = get_string('pp_historic', 'block_iomad_commerce');
-    $invoice->pp_account = get_string('notapplicable', 'local_report_completion');
+    $porecord = $DB->get_record('paygw_po', ['invoiceid' => $invoiceid], 'id', IGNORE_MISSING);
+    if ($porecord) {
+        $invoice->checkout_method = get_string('pluginname', 'paygw_po');
+    } else {
+        $invoice->checkout_method = get_string('status_u', 'block_iomad_commerce');
+    }
+
+    $currentstatus = $DB->get_field('blocks_ecommerce_status', 'status', ['invoiceid' => $invoiceid]);
+    if (empty($currentstatus)) {
+        $currentstatus = \block_iomad_commerce\helper::INVOICESTATUS_UNPAID;
+    }
+    $invoice->pp_account = get_string('status_' . $currentstatus, 'block_iomad_commerce');
 } else {
     $payment = $DB->get_record('payments', ['id' => $invoice->paymentid]);
     $invoice->checkout_method = get_string('pluginname', 'paygw_' . $payment->gateway);
-    $accounts = \core_payment\helper::get_payment_accounts_menu($systemcontext);
-    $invoice->pp_account = $accounts[$payment->accountid];
-
+    if ($payment->gateway === 'po') {
+        $currentstatus = $DB->get_field('blocks_ecommerce_status', 'status', ['invoiceid' => $invoiceid]);
+        if (empty($currentstatus)) {
+            $currentstatus = \block_iomad_commerce\helper::INVOICESTATUS_UNPAID;
+        }
+        $invoice->pp_account = get_string('status_' . $currentstatus, 'block_iomad_commerce');
+    } else {
+        $accounts = \core_payment\helper::get_payment_accounts_menu($systemcontext);
+        $invoice->pp_account = $accounts[$payment->accountid] ?? get_string('notapplicable', 'local_report_completion');
+    }
 }
 
 $showaccount = false;
 if (iomad::has_capability('block/iomad_company_admin:company_add', $companycontext)) {
     $showaccount = true;
 }
-$mform = new \block_iomad_commerce\forms\order_edit_form($PAGE->url, $invoiceid, $showaccount);
+$mform = new \block_iomad_commerce\forms\order_edit_form($PAGE->url, $invoiceid, $showaccount, $editmode);
 $mform->set_data($invoice);
 
 if ($mform->is_cancelled()) {
-    redirect($companylist);
-
+    redirect(new moodle_url('/blocks/iomad_commerce/edit_order_form.php', ['id' => $invoiceid]));
 } else if ($data = $mform->get_data()) {
-    redirect($companylist);
+    $updatedinvoice = new stdClass();
+    $updatedinvoice->id = $invoiceid;
+    $updatedinvoice->firstname = $data->firstname;
+    $updatedinvoice->lastname = $data->lastname;
+    $updatedinvoice->company = $data->company;
+    $updatedinvoice->address = $data->address;
+    $updatedinvoice->city = $data->city;
+    $updatedinvoice->postcode = $data->postcode;
+    $updatedinvoice->state = $data->state;
+    $updatedinvoice->country = $data->country;
+    $updatedinvoice->email = $data->email;
+    $updatedinvoice->phone1 = $data->phone1;
+    $updatedinvoice->reference = $data->reference;
 
+    $DB->update_record('invoice', $updatedinvoice);
+
+    // Update status if present in form data
+    if (isset($data->status) && $data->status !== '') {
+        $invoiceupdate = new stdClass();
+        $invoiceupdate->invoiceid = $invoiceid;
+        $invoiceupdate->status = $data->status;
+
+        $existingstatus = $DB->get_record('blocks_ecommerce_status', ['invoiceid' => $invoiceid]);
+        if ($existingstatus) {
+            $invoiceupdate->id = $existingstatus->id;
+            $DB->update_record('blocks_ecommerce_status', $invoiceupdate);
+        } else {
+            $DB->insert_record('blocks_ecommerce_status', $invoiceupdate);
+        }
+    }
+
+    $map = $DB->get_record('iomad_xero_invoice', ['invoiceid' => $invoiceid]);
+    if ($map) {
+        $map->modified_date = time();
+        $DB->update_record('iomad_xero_invoice', $map);
+    }
+
+    redirect(new moodle_url('/blocks/iomad_commerce/edit_order_form.php', ['id' => $invoiceid]));
 } else {
 
     echo $OUTPUT->header();
 
-if (!$invoice->paymentid) {
-	echo "<a href='../../blocks/iomad_ecommerce/checkout.php?invoiceid=".$invoiceid."' target='_blank'><button class='btn btn-primary'>Make Payment</button></a>";
-}
+    echo '<div class="mb-3" style="display:flex;gap:8px;flex-wrap:wrap">';
+    echo '<a href="' . (new moodle_url('/blocks/iomad_commerce/edit_order_form.php', ['id' => $invoiceid, 'editmode' => 1]))->out() . '" class="btn btn-secondary">Edit</a>';
+    // Cancel invoice as POST form with sesskey (CSRF protected).
+    $xeroinvoice = $DB->get_record('iomad_xero_invoice', ['invoiceid' => $invoiceid], 'invoiceid, xeroinvoiceid');
+    $hasxeroinvoice = !empty($xeroinvoice) && !empty($xeroinvoice->xeroinvoiceid)
+        && $xeroinvoice->xeroinvoiceid !== '00000000-0000-0000-0000-000000000000';
+
+    if ($invoice->status === 'c' || !$hasxeroinvoice) {
+        $title = ($invoice->status === 'c')
+            ? 'Invoice is already cancelled'
+            : 'Invoice not created in Xero yet';
+        echo '<button type="button" class="btn btn-danger" disabled title="' . s($title) . '">Cancel Invoice</button>';
+    } else {
+        echo '<form method="post" style="display:inline;">';
+        echo '<input type="hidden" name="id" value="' . $invoiceid . '" />';
+        echo '<input type="hidden" name="cancelinvoice" value="1" />';
+        echo '<input type="hidden" name="sesskey" value="' . sesskey() . '" />';
+        echo '<button type="submit" class="btn btn-danger">Cancel Invoice</button>';
+        echo '</form>';
+    }
+
+    if (!$hasxeroinvoice) {
+        if ($invoice->status === 'c') {
+            echo '<button type="button" class="btn btn-primary" disabled title="Invoice is already cancelled">Generate Invoice</button>';
+        } else {
+            echo '<form method="post" style="display:inline;">';
+            echo '<input type="hidden" name="id" value="' . $invoiceid . '" />';
+            echo '<input type="hidden" name="generateinvoice" value="1" />';
+            echo '<input type="hidden" name="sesskey" value="' . sesskey() . '" />';
+            echo '<button type="submit" class="btn btn-primary">Generate Invoice</button>';
+            echo '</form>';
+        }
+    }
+
+    if ($hasxeroinvoice) {
+        $downloadurl = new moodle_url('/blocks/iomad_ecommerce/downloads.php', [
+            'action' => 'downloadinvoice',
+            'invoiceid' => $invoiceid,
+            'xeroinvoiceid' => $xeroinvoice->xeroinvoiceid,
+        ]);
+        echo '<a target="_blank" class="btn btn-primary" href="' . $downloadurl->out() . '">Download Invoice</a>';
+    }
+    echo '</div>';
+
+    if (!$invoice->paymentid) {
+        $checkouturl = new moodle_url('/blocks/iomad_ecommerce/checkout.php', ['invoiceid' => $invoiceid]);
+        echo '<a href="' . $checkouturl->out() . '" target="_blank"><button class="btn btn-primary">Make Payment</button></a>';
+    }
 
     $mform->display();
     echo $OUTPUT->footer();
