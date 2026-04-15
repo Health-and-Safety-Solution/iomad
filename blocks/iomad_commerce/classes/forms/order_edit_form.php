@@ -60,36 +60,25 @@ class order_edit_form extends moodleform {
 	$mform->addElement('html', "<p style='font-size:16px;'>To enrol delegates scroll to the bottom of this page and select the enrol button next to the relevant course.</p><p style='font-size:13px;'><u>Please note:</u> If you create the login for the  delegate or they already exist within your company's user list with the correct email address, you should be able to assign them. If the delegate has created their own account they must click the link in in the confirmation email sent to them before you are able to enrol them on courses.</p>");
         $mform->addElement('header', 'header', get_string('order', 'block_iomad_commerce'));
 
-        if ($this->editmode) {
-            $mform->addElement('text', 'reference', get_string('reference', 'block_iomad_commerce'));
-            $mform->setType('reference', PARAM_RAW_TRIMMED);
-            $mform->addRule('reference', get_string('required'), 'required', null, 'client');
-        } else {
-            $mform->addElement('static', 'reference', get_string('reference', 'block_iomad_commerce'));
-        }
+        $mform->addElement('static', 'reference', get_string('reference', 'block_iomad_commerce'));
 
 	$po_detail = $DB->get_record_sql("select po,mdl_blocks_ecommerce_status.status from mdl_paygw_po LEFT JOIN mdl_blocks_ecommerce_status ON  mdl_paygw_po.invoiceid = mdl_blocks_ecommerce_status.invoiceid WHERE mdl_paygw_po.invoiceid=".$this->invoiceid);
-        if ($po_detail) {
+        if ($this->editmode) {
+            $mform->addElement('text', 'po_ref', 'PO/Ref');
+            $mform->setType('po_ref', PARAM_TEXT);
+        } else if ($po_detail) {
             $pay_status = ($po_detail->status == 'p' ? 'Paid' : 'Unpaid');
-            $mform->addElement('static', 'static', 'On Account booking using PO/Ref# <b>' . $po_detail->po . '</b>. Invoice is ' . $pay_status);
+            $mform->addElement('static', 'po_ref', 'On Account booking using PO/Ref', s($po_detail->po));
+            $mform->addElement('static', 'invoice_status', 'Invoice', s($pay_status));
         } else {
             $currentstatus = $DB->get_field('blocks_ecommerce_status', 'status', ['invoiceid' => $this->invoiceid]);
             if (empty($currentstatus)) {
                 $currentstatus = \block_iomad_commerce\helper::INVOICESTATUS_UNPAID;
             }
 
-            if ($this->editmode) {
-                $choices = [];
-                foreach ([\block_iomad_commerce\helper::INVOICESTATUS_UNPAID, \block_iomad_commerce\helper::INVOICESTATUS_PAID] as $status) {
-                    $choices[$status] = get_string('status_' . $status, 'block_iomad_commerce');
-                }
-                $mform->addElement('select', 'status', get_string('status'), $choices);
-                $mform->addRule('status', $strrequired, 'required', null, 'client');
-                $mform->setDefault('status', $currentstatus);
-            } else {
-                $statuslabel = get_string('status_' . $currentstatus, 'block_iomad_commerce');
-                $mform->addElement('static', 'statuslabel', get_string('status'), $statuslabel);
-            }
+            $statuslabel = get_string('status_' . $currentstatus, 'block_iomad_commerce');
+            $mform->addElement('static', 'po_ref', 'On Account booking using PO/Ref', '');
+            $mform->addElement('static', 'invoice_status', 'Invoice', $statuslabel);
         }
 
         $mform->addElement('header', 'header', get_string('purchaser_details', 'block_iomad_commerce'));

@@ -419,7 +419,7 @@ class helper {
                 if ($item->invoiceableitemtype == 'singlepurchase') {
                     $unitprice = '';
                 } else {
-                    $unitprice = $item->currency . number_format($item->price, 2);
+                    $unitprice = $item->currency . ' ' . number_format($item->price, 2);
                 }
 
                 if (!empty($currentcurrency) && $item->currency != $currentcurrency) {
@@ -585,7 +585,7 @@ class helper {
                     get_string('type_quantity_' . ($item->license_allocation > 1 ? 'n' : '1') .
                     '_' . $item->invoiceableitemtype, 'block_iomad_commerce', $item->license_allocation) . " @ " .
                     $unitprice . ' = ' .
-                    $item->currency .number_format($rowtotal, 2);
+                    $item->currency . ' ' . number_format($rowtotal, 2);
 
                 $result .= $row;
             }

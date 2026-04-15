@@ -185,6 +185,11 @@ if (empty($invoice->paymentid)) {
     }
 }
 
+$porecord = $DB->get_record('paygw_po', ['invoiceid' => $invoiceid]);
+if ($porecord) {
+    $invoice->po_ref = $porecord->po;
+}
+
 $showaccount = false;
 if (iomad::has_capability('block/iomad_company_admin:company_add', $companycontext)) {
     $showaccount = true;
@@ -207,9 +212,31 @@ if ($mform->is_cancelled()) {
     $updatedinvoice->country = $data->country;
     $updatedinvoice->email = $data->email;
     $updatedinvoice->phone1 = $data->phone1;
-    $updatedinvoice->reference = $data->reference;
 
     $DB->update_record('invoice', $updatedinvoice);
+
+    if (isset($data->po_ref)) {
+        $poRef = trim((string)$data->po_ref);
+        $existingpo = $DB->get_record('paygw_po', ['invoiceid' => $invoiceid]);
+        if (!empty($poRef)) {
+            if ($existingpo) {
+                $existingpo->po = $poRef;
+                $DB->update_record('paygw_po', $existingpo);
+            } else {
+                $newpo = new stdClass();
+                $newpo->po = $poRef;
+                $newpo->invoiceid = $invoiceid;
+                $newpo->customerid = $invoice->companyid;
+                $newpo->userid = $invoice->userid;
+                $newpo->status = '';
+                $newpo->created_date = time();
+                $DB->insert_record('paygw_po', $newpo);
+            }
+        } else if ($existingpo) {
+            $existingpo->po = '';
+            $DB->update_record('paygw_po', $existingpo);
+        }
+    }
 
     // Update status if present in form data
     if (isset($data->status) && $data->status !== '') {
