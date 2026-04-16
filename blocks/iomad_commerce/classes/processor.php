@@ -85,7 +85,9 @@ class processor {
                                             ii.id = :invoiceitemid', array('invoiceitemid' => $invoiceitem->id)))
         {
             $ii->currency = $ii->single_purchase_currency;
-            $ii->price = $ii->single_purchase_price;
+	    //Begin Customisation: To handle issue in custom ecommerce
+            //$ii->price = $ii->single_purchase_price;
+	    //End Customisation
             $ii->license_validlength = $ii->single_purchase_validlength;
             $DB->update_record('invoiceitem', $ii);
         }
@@ -190,7 +192,9 @@ class processor {
         if ($ii = $DB->get_record('invoiceitem', array('id' => $invoiceitem->id), '*')) {
             if ($block = \block_iomad_commerce\helper::get_license_block($ii->invoiceableitemid, $ii->license_allocation)) {
                 $ii->currency = $block->currency;
-                $ii->price = $block->price;
+		//Begin Customisation: To handle issue in custom ecommerce
+                //$ii->price = $block->price;
+		//End Customisation
                 $ii->license_validlength = $block->validlength;
                 $ii->license_shelflife = $block->shelflife;
 

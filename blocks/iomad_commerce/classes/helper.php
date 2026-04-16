@@ -376,7 +376,7 @@ class helper {
                                                ', array('invoiceid' => $invoiceid))) {*/
 
 	
-               if ($basketitems = $DB->get_records_sql('SELECT ii.*, css.name, csc.courseid, i.reference AS invoice_reference
+               if ($basketitems = $DB->get_records_sql('SELECT ii.*, css.name, csc.courseid, i.reference AS invoice_reference, i.status AS invoice_status, css.companyid
                                                 FROM {invoiceitem} ii
                                                     INNER JOIN {course_shopsettings} css ON ii.invoiceableitemid = css.id
                                                     LEFT JOIN {invoice} i ON i.id = ii.invoiceid
@@ -414,7 +414,19 @@ class helper {
             foreach ($basketitems as $item) {
                 $rowtotal = $item->price * $item->license_allocation;
 
-                if ($item->invoiceableitemtype == 'singlepurchase') {
+		$itemname = $item->name;
+		$itemquantitytext = get_string('type_quantity_' . ($item->license_allocation > 1 ? 'n' : '1') . '_' . $item->invoiceableitemtype, 'block_iomad_commerce', $item->license_allocation);
+
+		if ($item->invoiceableitemtype === 'refundadjustment') {
+			$itemname = 'Refund adjustment';
+			$itemquantitytext = '';
+		}
+
+		$companyid = \iomad::get_my_companyid(\context_system::instance());
+		$companycontext = \core\context\company::instance($companyid);
+		if (basename($_SERVER['SCRIPT_NAME']) == 'edit_order_form.php' && !empty(optional_param('editmode', 0, PARAM_BOOL)) && $item->invoice_status <> 'c' && iomad::has_capability('block/iomad_ecommerce:editQuotation', $companycontext)) {
+                    $unitprice = '<input type="number" step="0.01" min="0" name="price[' . $item->id . ']" value="' . s(number_format((float)$item->price, 2, '.', '')) . '" style="width:110px;">';
+                } else if ($item->invoiceableitemtype == 'singlepurchase') {
                     $unitprice = '';
                 } else {
                     $unitprice = $item->currency . number_format($item->price, 2);
@@ -485,16 +497,27 @@ class helper {
                         		$allocatebutton = '';
                     		}
 	                }
-			if (empty($licensedata->licenseid)) {
+			if ((empty($licensedata->licenseid)) && ($item->courseid > 0)){
         	        	$allocatebutton = "<a class='btn btn-primary' style='margin-left: 0.5em' href='".
                 	    	new moodle_url('/blocks/iomad_commerce/edit_order_form.php?id='.$invoiceid)."'>Click to Process</a>";
                 	}
 		}
 		//var_dump($item->license_startdate);exit;
+		//Begin Customisation: Accellier: For showing correctly in Inhouse Course Order
+		$item_unit = 'NA';
+                if ($item->courseid == 0) {
+			$item_unit = '';
+                        if ($item->name == 'Certificate Fee') {
+                                $item_unit = '12 Delegates<br/><span style="color: #bf6600; font-size: small; width: 50px; font-weight: bold;">Note: Final Invoice will be adjusted to actual attendees</span>';
+			}
+                } else if ($item->companyid == 28) {
+			$item_unit = '1 Class (Max 12 Delegates)';
+		}
+                //End Customisation
                 $row = array(
                     ($links ? "<a href='" . new moodle_url($CFG->wwwroot . '/blocks/iomad_commerce/item.php', ['itemid' => $item->invoiceableitemid]) ."'>" .$item->name ."</a>" : $item->name),
-                    get_string('type_quantity_' . ($item->license_allocation > 1 ? 'n' : '1') .
-                    '_' . $item->invoiceableitemtype, 'block_iomad_commerce', $item->license_allocation),
+                    ($item_unit == 'NA' ? (get_string('type_quantity_' . ($item->license_allocation > 1 ? 'n' : '1') .
+                    '_' . $item->invoiceableitemtype, 'block_iomad_commerce', $item->license_allocation)) : $item_unit),
                     $unitprice,
                     $item->currency . ' ' .number_format($rowtotal, 2)
                 );
@@ -566,6 +589,11 @@ class helper {
 
             foreach ($basketitems as $item) {
                 $rowtotal = $item->price * $item->license_allocation;
+
+		if ($item->invoiceableitemtype === 'refundadjustment') {
+                    $itemname = 'Refund adjustment';
+                    $itemquantitytext = '';
+                }
 
                 if ($item->invoiceableitemtype == 'singlepurchase') {
                     $unitprice = '';
