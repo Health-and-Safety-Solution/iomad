@@ -420,6 +420,9 @@ class helper {
 		if ($item->invoiceableitemtype === 'refundadjustment') {
 			$itemname = 'Refund adjustment';
 			$itemquantitytext = '';
+		} else if ($item->invoiceableitemtype === 'creditnote') {
+			$itemname = 'Credit note';
+			$itemquantitytext = '';
 		}
 
 		$companyid = \iomad::get_my_companyid(\context_system::instance());
@@ -514,10 +517,22 @@ class helper {
 			$item_unit = '1 Class (Max 12 Delegates)';
 		}
                 //End Customisation
+                if (in_array($item->invoiceableitemtype, ['refundadjustment', 'creditnote'], true)) {
+                    $itemdisplayname = $itemname;
+                    $itemdisplayunit = $itemquantitytext;
+                } else {
+                    $itemdisplayname = $links
+                        ? "<a href='" . new moodle_url($CFG->wwwroot . '/blocks/iomad_commerce/item.php', ['itemid' => $item->invoiceableitemid]) ."'>" .$item->name ."</a>"
+                        : $item->name;
+                    $itemdisplayunit = ($item_unit == 'NA'
+                        ? get_string('type_quantity_' . ($item->license_allocation > 1 ? 'n' : '1') .
+                            '_' . $item->invoiceableitemtype, 'block_iomad_commerce', $item->license_allocation)
+                        : $item_unit);
+                }
+
                 $row = array(
-                    ($links ? "<a href='" . new moodle_url($CFG->wwwroot . '/blocks/iomad_commerce/item.php', ['itemid' => $item->invoiceableitemid]) ."'>" .$item->name ."</a>" : $item->name),
-                    ($item_unit == 'NA' ? (get_string('type_quantity_' . ($item->license_allocation > 1 ? 'n' : '1') .
-                    '_' . $item->invoiceableitemtype, 'block_iomad_commerce', $item->license_allocation)) : $item_unit),
+                    $itemdisplayname,
+                    $itemdisplayunit,
                     $unitprice,
                     $item->currency . ' ' .number_format($rowtotal, 2)
                 );
@@ -593,6 +608,9 @@ class helper {
 		if ($item->invoiceableitemtype === 'refundadjustment') {
                     $itemname = 'Refund adjustment';
                     $itemquantitytext = '';
+                } else if ($item->invoiceableitemtype === 'creditnote') {
+                    $itemname = 'Credit note';
+                    $itemquantitytext = '';
                 }
 
                 if ($item->invoiceableitemtype == 'singlepurchase') {
@@ -607,11 +625,15 @@ class helper {
                     $currentcurrency = $item->currency;
                 }
 
-                $row = $item->name . ": " .
-                    get_string('type_quantity_' . ($item->license_allocation > 1 ? 'n' : '1') .
-                    '_' . $item->invoiceableitemtype, 'block_iomad_commerce', $item->license_allocation) . " @ " .
-                    $unitprice . ' = ' .
-                    $item->currency .number_format($rowtotal, 2);
+                if (in_array($item->invoiceableitemtype, ['refundadjustment', 'creditnote'], true)) {
+                    $row = $itemname . ': ' . $unitprice . ' = ' . $item->currency . ' ' . number_format($rowtotal, 2);
+                } else {
+                    $row = $item->name . ": " .
+                        get_string('type_quantity_' . ($item->license_allocation > 1 ? 'n' : '1') .
+                        '_' . $item->invoiceableitemtype, 'block_iomad_commerce', $item->license_allocation) . " @ " .
+                        $unitprice . ' = ' .
+                        $item->currency .number_format($rowtotal, 2);
+                }
 
                 $result .= $row;
             }

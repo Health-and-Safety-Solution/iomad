@@ -29,6 +29,7 @@ require_once(dirname(__FILE__) . '/../../config.php');
 require_once(dirname(__FILE__) . '/../iomad_company_admin/lib.php');
 require_once(dirname(__FILE__) . '/../../course/lib.php');
 require_once($CFG->dirroot.'/blocks/iomad_ecommerce/lib.php');
+require_once($CFG->dirroot.'/local/iomad_xero/lib.php');
 require_once($CFG->dirroot . '/local/iomad/lib/user.php');
 require_once($CFG->dirroot . '/local/iomad/lib/company.php');
 
@@ -172,22 +173,55 @@ if ($cancelinvoice && confirm_sesskey()) {
         }
     }
 
+    $refundline = null;
     if ($refundvalue > 0) {
         $baseitem = $DB->get_record('course_shopsettings', ['name' => 'Refund after deducting Cancellation Charges'], 'id,single_purchase_currency', IGNORE_MULTIPLE);
+        if (!$baseitem) {
+            $baseinvoiceitem = $DB->get_record('invoiceitem', ['invoiceid' => $invoiceid], 'invoiceableitemid,currency,license_allocation,license_validlength,license_shelflife', IGNORE_MULTIPLE);
+            if ($baseinvoiceitem) {
+                $baseitem = (object)[
+                    'id' => $baseinvoiceitem->invoiceableitemid,
+                    'single_purchase_currency' => $baseinvoiceitem->currency,
+                    'license_allocation' => $baseinvoiceitem->license_allocation,
+                    'license_validlength' => $baseinvoiceitem->license_validlength,
+                    'license_shelflife' => $baseinvoiceitem->license_shelflife,
+                ];
+            }
+        }
         if ($baseitem) {
             $refundline = new stdClass();
             $refundline->invoiceid = $invoiceid;
             $refundline->invoiceableitemid = $baseitem->id;
-            $refundline->invoiceableitemtype = 'refundadjustment';
+            $refundline->invoiceableitemtype = ($refundtype === 'partial') ? 'creditnote' : 'refundadjustment';
             $refundline->quantity = 1;
             $refundline->currency = $baseitem->single_purchase_currency;
             $refundline->price = -1 * $refundvalue;
-            $refundline->license_allocation = 1;
-            $refundline->license_validlength = 0;
-            $refundline->license_shelflife = 0;
+            $refundline->license_allocation = !empty($baseitem->license_allocation) ? $baseitem->license_allocation : 1;
+            $refundline->license_validlength = !empty($baseitem->license_validlength) ? $baseitem->license_validlength : 0;
+            $refundline->license_shelflife = !empty($baseitem->license_shelflife) ? $baseitem->license_shelflife : 0;
             $refundline->processed = 1;
-            $a = $DB->insert_record('invoiceitem', $refundline);
         }
+    }
+
+    $hasxeroinvoice = $DB->record_exists_select(
+        'iomad_xero_invoice',
+        'invoiceid = :invoiceid AND xeroinvoiceid IS NOT NULL AND xeroinvoiceid <> :emptyid',
+        ['invoiceid' => $invoiceid, 'emptyid' => '00000000-0000-0000-0000-000000000000']
+    );
+    if ($refundtype === 'partial' && $refundvalue > 0 && $hasxeroinvoice) {
+        [$creditnotesuccess, $creditnoteerror] = iomad_xero_create_credit_note_for_refund($invoiceid, $refundvalue);
+        if (!$creditnotesuccess) {
+            redirect(
+                new moodle_url('/blocks/iomad_commerce/edit_order_form.php', ['id' => $invoiceid, 'cancelmode' => 1]),
+                'Unable to create the Xero credit note for this partial refund. ' . $creditnoteerror,
+                null,
+                \core\output\notification::NOTIFY_ERROR
+            );
+        }
+    }
+
+    if ($refundline) {
+        $DB->insert_record('invoiceitem', $refundline);
     }
 
     $invoice->status = 'c';
@@ -246,7 +280,7 @@ if ($cancelinvoice && confirm_sesskey()) {
 			}
 
 			$invoiceitem = $DB->get_record('invoiceitem', ['id' => $itemid, 'invoiceid' => $invoiceid]);
-			if (!$invoiceitem || $invoiceitem->invoiceableitemtype === 'refundadjustment') {
+			if (!$invoiceitem || in_array($invoiceitem->invoiceableitemtype, ['refundadjustment', 'creditnote'], true)) {
 				continue;
 			}
 

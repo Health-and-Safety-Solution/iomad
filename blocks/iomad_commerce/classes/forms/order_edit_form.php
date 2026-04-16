@@ -128,6 +128,8 @@ class order_edit_form extends moodleform {
             $mform->addElement('static', 'pp_account', get_string('paymentaccount', 'payment'));
         }
 
-	$this->add_action_buttons(false, get_string('back'));
+        $buttonarray = [];
+        $buttonarray[] = &$mform->createElement('cancel', 'cancel', get_string('back'));
+        $mform->addGroup($buttonarray, 'buttonar', '', [' '], false);
     }
 }
