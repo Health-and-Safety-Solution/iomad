@@ -421,7 +421,21 @@ class helper {
 			$itemname = 'Refund adjustment';
 			$itemquantitytext = '';
 		} else if ($item->invoiceableitemtype === 'creditnote') {
-			$itemname = 'Credit note';
+                    $creditnotemap = $DB->get_record('iomad_xero_invoice', ['invoiceid' => $item->invoiceid], 'xero_creditnoteid,xero_creditnotenumber', IGNORE_MISSING);
+                    $creditnotenumber = !empty($creditnotemap->xero_creditnotenumber) && $creditnotemap->xero_creditnotenumber !== '0'
+                        ? $creditnotemap->xero_creditnotenumber
+                        : '';
+                    $creditnotelabel = 'Credit note' . (!empty($creditnotenumber) ? ' (' . $creditnotenumber . ')' : '');
+                    if (!empty($creditnotemap->xero_creditnoteid) && $creditnotemap->xero_creditnoteid !== '0') {
+                        $itemname = "<a target='_blank' class='downloadpdfinvoice' href='" .
+                            new moodle_url($CFG->wwwroot . '/blocks/iomad_ecommerce/downloads.php', [
+                                'action' => 'downloadcreditnote',
+                                'invoiceid' => $item->invoiceid,
+                                'xerocreditnoteid' => $creditnotemap->xero_creditnoteid
+                            ]) . "'>" . s($creditnotelabel) . "</a>";
+                    } else {
+                        $itemname = $creditnotelabel;
+                    }
 			$itemquantitytext = '';
 		}
 
@@ -609,7 +623,8 @@ class helper {
                     $itemname = 'Refund adjustment';
                     $itemquantitytext = '';
                 } else if ($item->invoiceableitemtype === 'creditnote') {
-                    $itemname = 'Credit note';
+                    $creditnotenumber = $DB->get_field('iomad_xero_invoice', 'xero_creditnotenumber', ['invoiceid' => $item->invoiceid]);
+                    $itemname = 'Credit note' . (!empty($creditnotenumber) && $creditnotenumber !== '0' ? ' (' . $creditnotenumber . ')' : '');
                     $itemquantitytext = '';
                 }
 

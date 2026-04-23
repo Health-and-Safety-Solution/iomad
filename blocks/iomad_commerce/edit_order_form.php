@@ -209,7 +209,7 @@ if ($cancelinvoice && confirm_sesskey()) {
         ['invoiceid' => $invoiceid, 'emptyid' => '00000000-0000-0000-0000-000000000000']
     );
     if ($refundtype === 'partial' && $refundvalue > 0 && $hasxeroinvoice) {
-        [$creditnotesuccess, $creditnoteerror] = iomad_xero_create_credit_note_for_refund($invoiceid, $refundvalue);
+        [$creditnotesuccess, $creditnoteerror, $creditnoteid, $creditnotenumber] = iomad_xero_create_credit_note_for_refund($invoiceid, $refundvalue);
         if (!$creditnotesuccess) {
             redirect(
                 new moodle_url('/blocks/iomad_commerce/edit_order_form.php', ['id' => $invoiceid, 'cancelmode' => 1]),
@@ -217,6 +217,13 @@ if ($cancelinvoice && confirm_sesskey()) {
                 null,
                 \core\output\notification::NOTIFY_ERROR
             );
+        }
+
+        if (!empty($creditnoteid)) {
+            $DB->set_field('iomad_xero_invoice', 'xero_creditnoteid', $creditnoteid, ['invoiceid' => $invoiceid]);
+            if (!empty($creditnotenumber)) {
+                $DB->set_field('iomad_xero_invoice', 'xero_creditnotenumber', $creditnotenumber, ['invoiceid' => $invoiceid]);
+            }
         }
     }
 
