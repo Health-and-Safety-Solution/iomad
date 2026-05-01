@@ -33,7 +33,244 @@ require_once($CFG->dirroot.'/local/iomad_xero/lib.php');
 require_once($CFG->dirroot . '/local/iomad/lib/user.php');
 require_once($CFG->dirroot . '/local/iomad/lib/company.php');
 
+function iomad_order_get_cancellable_items(int $invoiceid, string $reference): array {
+    global $DB;
+
+    $sql = "SELECT ii.id,
+                   ii.invoiceid,
+                   ii.invoiceableitemid,
+                   ii.invoiceableitemtype,
+                   ii.license_allocation,
+                   ii.quantity,
+                   ii.price,
+                   ii.currency,
+                   css.name,
+                   csc.courseid,
+                   c.fullname AS coursefullname,
+                   c.shortname AS courseshortname,
+                   c.idnumber AS courseidnumber,
+                   cl.id AS licenseid,
+                   cl.companyid AS licensecompanyid,
+                   cl.allocation,
+                   cl.humanallocation,
+                   cl.used
+              FROM {invoiceitem} ii
+         LEFT JOIN {course_shopsettings} css
+                ON css.id = ii.invoiceableitemid
+         LEFT JOIN {course_shopsettings_courses} csc
+                ON csc.itemid = css.id
+         LEFT JOIN {course} c
+                ON c.id = csc.courseid
+         LEFT JOIN {companylicense_courses} clc
+                ON clc.courseid = csc.courseid
+         LEFT JOIN {companylicense} cl
+                ON cl.id = clc.licenseid
+               AND cl.reference = :reference
+             WHERE ii.invoiceid = :invoiceid
+               AND ii.invoiceableitemtype NOT IN ('refundadjustment', 'creditnote')
+               AND csc.courseid IS NOT NULL
+          ORDER BY ii.id ASC";
+
+    $items = $DB->get_records_sql($sql, ['invoiceid' => $invoiceid, 'reference' => $reference]);
+    foreach ($items as $item) {
+        $item->isinhouse = !empty($item->courseidnumber) && strpos((string)$item->courseidnumber, 'INH:') === 0;
+        $item->assignedusers = [];
+        if (!empty($item->licenseid) && !empty($item->courseid)) {
+            $assignedsql = "SELECT clu.id,
+                                   clu.userid,
+                                   u.firstname,
+                                   u.lastname,
+                                   u.email
+                              FROM {companylicense_users} clu
+                              JOIN {user} u
+                                ON u.id = clu.userid
+                             WHERE clu.licenseid = :licenseid
+                               AND clu.licensecourseid = :courseid
+                               AND clu.userid > 0
+                               AND (clu.timecompleted IS NULL OR clu.timecompleted = 0)
+                          ORDER BY u.firstname ASC, u.lastname ASC";
+            $item->assignedusers = $DB->get_records_sql($assignedsql, [
+                'licenseid' => $item->licenseid,
+                'courseid' => $item->courseid,
+            ]);
+        }
+    }
+
+    return $items;
+}
+
+function iomad_order_force_remove_user_from_course(int $userid, int $courseid): void {
+    global $DB;
+
+    $coursecontext = context_course::instance($courseid, IGNORE_MISSING);
+    if ($coursecontext) {
+        $DB->delete_records('role_assignments', [
+            'contextid' => $coursecontext->id,
+            'userid' => $userid,
+        ]);
+    }
+
+    $enrolids = $DB->get_fieldset_select('enrol', 'id', 'courseid = ?', [$courseid]);
+    if (!empty($enrolids)) {
+        [$insql, $params] = $DB->get_in_or_equal($enrolids, SQL_PARAMS_NAMED);
+        $params['userid'] = $userid;
+        $DB->delete_records_select('user_enrolments', "enrolid $insql AND userid = :userid", $params);
+    }
+
+    $DB->delete_records('email', [
+        'userid' => $userid,
+        'courseid' => $courseid,
+        'templatename' => 'user_added_to_course',
+        'sent' => null,
+    ]);
+}
+
+function iomad_order_unassign_license_user(int $licenseid, int $courseid, int $userid, ?int $companyid = null): void {
+    global $DB;
+
+    iomad_order_force_remove_user_from_course($userid, $courseid);
+    $DB->delete_records('companylicense_users', [
+        'licenseid' => $licenseid,
+        'licensecourseid' => $courseid,
+        'userid' => $userid,
+    ]);
+    $DB->delete_records('local_iomad_track', [
+        'licenseid' => $licenseid,
+        'courseid' => $courseid,
+        'userid' => $userid,
+    ]);
+    company::update_license_usage($licenseid);
+}
+
+function iomad_order_cancel_inhouse_course(stdClass $item, string $invoiceReference): void {
+    global $DB, $CFG;
+
+    if (empty($item->courseid)) {
+        return;
+    }
+
+    $prefix = '[CANCELLED] ';
+    if ($course = $DB->get_record('course', ['id' => $item->courseid])) {
+        if (strpos((string)$course->fullname, $prefix) !== 0) {
+            $course->fullname = $prefix . $course->fullname;
+        }
+        if (strpos((string)$course->shortname, $prefix) !== 0) {
+            $course->shortname = $prefix . $course->shortname;
+        }
+        $DB->update_record('course', $course);
+    }
+
+    if ($shopitem = $DB->get_record('course_shopsettings', ['id' => $item->invoiceableitemid])) {
+        if (strpos((string)$shopitem->name, $prefix) !== 0) {
+            $shopitem->name = $prefix . $shopitem->name;
+        }
+        if (!empty($shopitem->short_description) && strpos((string)$shopitem->short_description, $prefix) !== 0) {
+            $shopitem->short_description = $prefix . $shopitem->short_description;
+        }
+        $DB->update_record('course_shopsettings', $shopitem);
+    }
+
+    $editingteacherroleid = $DB->get_field('role', 'id', ['shortname' => 'editingteacher']);
+    $coursecontext = context_course::instance($item->courseid);
+    if (!empty($editingteacherroleid)) {
+        $trainerids = $DB->get_fieldset_sql(
+            "SELECT DISTINCT ra.userid
+               FROM {role_assignments} ra
+              WHERE ra.contextid = :contextid
+                AND ra.roleid = :roleid",
+            ['contextid' => $coursecontext->id, 'roleid' => $editingteacherroleid]
+        );
+        foreach ($trainerids as $trainerid) {
+            $trainer = get_complete_user_data('id', $trainerid);
+            if ($trainer) {
+                iomad_order_force_remove_user_from_course($trainerid, (int)$item->courseid);
+                $subject = 'In-house course cancelled: ' . ($item->coursefullname ?: $item->name);
+                $message = 'The in-house course "' . ($item->coursefullname ?: $item->name) . '" linked to order reference '
+                    . $invoiceReference . ' has been cancelled, so the trainer assignment has been removed.';
+                email_to_user($trainer, core_user::get_support_user(), $subject, $message);
+            }
+        }
+    }
+
+    $trainingevents = $DB->get_records('trainingevent', ['course' => $item->courseid], 'id ASC');
+    foreach ($trainingevents as $trainingevent) {
+        $cm = get_coursemodule_from_instance('trainingevent', $trainingevent->id, $item->courseid, false, IGNORE_MISSING);
+        if ($cm) {
+            course_delete_module($cm->id);
+        } else {
+            $DB->delete_records('trainingevent', ['id' => $trainingevent->id]);
+        }
+    }
+
+    if (!empty($item->licenseid)) {
+        if (!empty($item->assignedusers)) {
+            foreach ($item->assignedusers as $assigneduser) {
+                iomad_order_unassign_license_user((int)$item->licenseid, (int)$item->courseid, (int)$assigneduser->userid, $item->licensecompanyid ? (int)$item->licensecompanyid : null);
+            }
+        }
+        $DB->delete_records('local_iomad_track', ['licenseid' => $item->licenseid, 'courseid' => $item->courseid]);
+        $DB->delete_records('companylicense_courses', ['licenseid' => $item->licenseid, 'courseid' => $item->courseid]);
+        $DB->delete_records('companylicense', ['id' => $item->licenseid]);
+    }
+}
+
+function iomad_order_reduce_open_course_place(stdClass $item, int $selecteduserid = 0): string {
+    global $DB;
+
+    if (empty($item->licenseid) || empty($item->courseid)) {
+        return 'No active course place was found for this order item.';
+    }
+
+    $currentallocation = max(0, (int)$item->humanallocation);
+    $assignedcount = is_array($item->assignedusers) ? count($item->assignedusers) : 0;
+
+    if ($currentallocation <= 0) {
+        return 'There are no remaining course places to cancel for this item.';
+    }
+
+    if ($selecteduserid > 0) {
+        $validselection = false;
+        foreach ($item->assignedusers as $assigneduser) {
+            if ((int)$assigneduser->userid === $selecteduserid) {
+                $validselection = true;
+                break;
+            }
+        }
+        if (!$validselection) {
+            return 'Please choose a valid assigned delegate to unassign.';
+        }
+        iomad_order_unassign_license_user((int)$item->licenseid, (int)$item->courseid, $selecteduserid, $item->licensecompanyid ? (int)$item->licensecompanyid : null);
+        $assignedcount--;
+    } else if ($assignedcount >= $currentallocation) {
+        return 'All course places are currently assigned. Please choose which delegate should be unassigned.';
+    }
+
+    $newallocation = $currentallocation - 1;
+    if ($newallocation < $assignedcount) {
+        return 'Unable to cancel this course place until a delegate has been unassigned.';
+    }
+
+    if ($newallocation <= 0) {
+        $DB->delete_records('companylicense_courses', ['licenseid' => $item->licenseid, 'courseid' => $item->courseid]);
+        $DB->delete_records('companylicense', ['id' => $item->licenseid]);
+        $DB->delete_records('invoiceitem', ['id' => $item->id]);
+    } else {
+        $license = $DB->get_record('companylicense', ['id' => $item->licenseid], '*', MUST_EXIST);
+        $license->allocation = $newallocation;
+        $license->humanallocation = $newallocation;
+        $license->used = $assignedcount;
+        $DB->update_record('companylicense', $license);
+
+        $invoiceitem = $DB->get_record('invoiceitem', ['id' => $item->id], '*', MUST_EXIST);
+        $invoiceitem->license_allocation = $newallocation;
+        $DB->update_record('invoiceitem', $invoiceitem);
+    }
+
+    return '';
+}
+
 \block_iomad_commerce\helper::require_commerce_enabled();
+global $SESSION;
 
 $returnurl = optional_param('returnurl', '', PARAM_LOCALURL);
 $invoiceid = required_param('id', PARAM_INTEGER);
@@ -49,13 +286,21 @@ $companycontext = \core\context\company::instance($companyid);
 if(iomad::has_capability('block/iomad_ecommerce:editQuotation', $companycontext)) {
         $editmode = optional_param('editmode', 0, PARAM_BOOL);
         $cancelmode = optional_param('cancelmode', 0, PARAM_BOOL);
+        $partialcancelmode = optional_param('partialcancelmode', 0, PARAM_BOOL);
         $cancelinvoice = optional_param('cancelinvoice', 0, PARAM_BOOL);
+        $partialcancel = optional_param('partialcancel', 0, PARAM_BOOL);
+        $partialcancelitemid = optional_param('partial_cancel_itemid', 0, PARAM_INT);
+        $partialcanceluserid = optional_param('partial_cancel_userid', 0, PARAM_INT);
         $refundtype = optional_param('refundtype', '', PARAM_ALPHA);
         $refundamount = optional_param('refundamount', 0, PARAM_FLOAT);
 } else {
         $editmode = 0;
         $cancelmode = 0;
+        $partialcancelmode = 0;
         $cancelinvoice = 0;
+        $partialcancel = 0;
+        $partialcancelitemid = 0;
+        $partialcanceluserid = 0;
         $refundtype = '';
         $refundamount = 0;
 }
@@ -65,6 +310,7 @@ $company = new company($companyid);
 $invoice = \block_iomad_commerce\helper::get_invoice($invoiceid);
 if ($invoice->status == 'c') {
 	$editmode = 0;
+    $partialcancelmode = 0;
 }
 if($invoice->companyid != $companyid) {
         $SESSION->basketid = NULL;
@@ -131,12 +377,75 @@ if ($porecord) {
     $invoice->po_ref = $porecord->po;
 }
 
+$partialcancelitems = iomad_order_get_cancellable_items($invoiceid, (string)$invoice->reference);
+
+if ($editmode) {
+    if (empty($SESSION->order_edit_quantity_limits) || !is_array($SESSION->order_edit_quantity_limits)) {
+        $SESSION->order_edit_quantity_limits = [];
+    }
+    if (empty($SESSION->order_edit_quantity_limits[$invoiceid]) || !is_array($SESSION->order_edit_quantity_limits[$invoiceid])) {
+        $SESSION->order_edit_quantity_limits[$invoiceid] = [];
+    }
+    if ($invoiceitems = $DB->get_records('invoiceitem', ['invoiceid' => $invoiceid], 'id', 'id, quantity, invoiceableitemtype')) {
+        foreach ($invoiceitems as $invoiceitem) {
+            if (in_array($invoiceitem->invoiceableitemtype, ['refundadjustment', 'creditnote'], true)) {
+                continue;
+            }
+            if (!isset($SESSION->order_edit_quantity_limits[$invoiceid][$invoiceitem->id])) {
+                $SESSION->order_edit_quantity_limits[$invoiceid][$invoiceitem->id] = max(1, (int)$invoiceitem->quantity);
+            }
+        }
+    }
+}
+
 $showaccount = false;
 if (iomad::has_capability('block/iomad_company_admin:company_add', $companycontext)) {
     $showaccount = true;
 }
 $mform = new \block_iomad_commerce\forms\order_edit_form($PAGE->url, $invoiceid, $showaccount, $editmode);
 $mform->set_data($invoice);
+
+if ($partialcancel && confirm_sesskey()) {
+    $selecteditem = null;
+    foreach ($partialcancelitems as $candidateitem) {
+        if ((int)$candidateitem->id === $partialcancelitemid) {
+            $selecteditem = $candidateitem;
+            break;
+        }
+    }
+
+    if (!$selecteditem) {
+        redirect(
+            new moodle_url('/blocks/iomad_commerce/edit_order_form.php', ['id' => $invoiceid, 'partialcancelmode' => 1]),
+            'Please choose a valid order item to partially cancel.',
+            null,
+            \core\output\notification::NOTIFY_ERROR
+        );
+    }
+
+    $error = '';
+    if (!empty($selecteditem->isinhouse)) {
+        iomad_order_cancel_inhouse_course($selecteditem, (string)$invoice->reference);
+    } else {
+        $error = iomad_order_reduce_open_course_place($selecteditem, $partialcanceluserid);
+    }
+
+    if ($error !== '') {
+        redirect(
+            new moodle_url('/blocks/iomad_commerce/edit_order_form.php', ['id' => $invoiceid, 'partialcancelmode' => 1]),
+            $error,
+            null,
+            \core\output\notification::NOTIFY_ERROR
+        );
+    }
+
+    redirect(
+        new moodle_url('/blocks/iomad_commerce/edit_order_form.php', ['id' => $invoiceid]),
+        'Partial cancellation has been applied successfully.',
+        null,
+        \core\output\notification::NOTIFY_SUCCESS
+    );
+}
 
 if (!empty(optional_param('generateinvoice', 0, PARAM_BOOL)) && confirm_sesskey()) {
     $xeroinvoice = $DB->get_record('iomad_xero_invoice', ['invoiceid' => $invoiceid]);
@@ -246,8 +555,17 @@ if ($cancelinvoice && confirm_sesskey()) {
     }
 
     if (!empty($invoice->reference)) {
+        foreach ($partialcancelitems as $cancelitem) {
+            if (!empty($cancelitem->isinhouse)) {
+                iomad_order_cancel_inhouse_course($cancelitem, (string)$invoice->reference);
+            }
+        }
+
         $companylicenses = $DB->get_records('companylicense', ['reference' => $invoice->reference]);
         foreach ($companylicenses as $companylicense) {
+            if (!$DB->record_exists('companylicense', ['id' => $companylicense->id])) {
+                continue;
+            }
             $licenseusers = $DB->get_records('companylicense_users', ['licenseid' => $companylicense->id]);
             foreach ($licenseusers as $licenseuser) {
                 if (!empty($licenseuser->userid) && !empty($licenseuser->licensecourseid)) {
@@ -260,6 +578,7 @@ if ($cancelinvoice && confirm_sesskey()) {
             $companylicense->cutoffdate = time();
             $companylicense->used = 0;
 	    $companylicense->allocation = 0;
+            $companylicense->humanallocation = 0;
             $DB->update_record('companylicense', $companylicense);
         }
     }
@@ -269,6 +588,7 @@ if ($cancelinvoice && confirm_sesskey()) {
     redirect($companylist);
 } else if ($data = $mform->get_data()) {
 	$postedprices = optional_param_array('price', [], PARAM_RAW_TRIMMED);
+	$postedclasses = optional_param_array('numberofclass', [], PARAM_INT);
 	if (isset($data->po_ref)) {
 		$poRef = trim((string)$data->po_ref);
 		$existingpo = $DB->get_record('paygw_po', ['invoiceid' => $invoiceid]);
@@ -300,6 +620,34 @@ if ($cancelinvoice && confirm_sesskey()) {
 			$DB->update_record('invoiceitem', $invoiceitem);
 		}
 	}
+	if (!empty($postedclasses)) {
+		foreach ($postedclasses as $itemid => $postedclasscount) {
+			$itemid = (int)$itemid;
+			if ($itemid <= 0) {
+				continue;
+			}
+
+			$invoiceitem = $DB->get_record('invoiceitem', ['id' => $itemid, 'invoiceid' => $invoiceid]);
+			if (!$invoiceitem || in_array($invoiceitem->invoiceableitemtype, ['refundadjustment', 'creditnote'], true)) {
+				continue;
+			}
+
+			$newclasscount = max(1, (int)$postedclasscount);
+			$currentclasscount = max(1, (int)$invoiceitem->quantity);
+			$originallimit = !empty($SESSION->order_edit_quantity_limits[$invoiceid][$itemid])
+				? max(1, (int)$SESSION->order_edit_quantity_limits[$invoiceid][$itemid])
+				: $currentclasscount;
+			$maxeditableclasscount = max(1, $originallimit - 1);
+			if ($newclasscount > $maxeditableclasscount) {
+				$newclasscount = $maxeditableclasscount;
+			}
+
+			if ($newclasscount !== $currentclasscount) {
+				$invoiceitem->quantity = $newclasscount;
+				$DB->update_record('invoiceitem', $invoiceitem);
+			}
+		}
+	}
 
 	redirect(new moodle_url('/blocks/iomad_commerce/edit_order_form.php', ['id' => $invoiceid]));
 
@@ -309,18 +657,21 @@ if ($cancelinvoice && confirm_sesskey()) {
 
 	if(iomad::has_capability('block/iomad_ecommerce:editQuotation', $companycontext)) {
 	echo '<div class="mb-3" style="display:flex;gap:8px;flex-wrap:wrap">';
-	if ($editmode && !$cancelmode) {
+	if ($editmode && !$cancelmode && !$partialcancelmode) {
 		echo '<button type="submit" form="order-edit-form" class="btn btn-primary">' . get_string('savechanges') . '</button>';
 		echo '<a href="' . (new moodle_url('/blocks/iomad_commerce/edit_order_form.php', ['id' => $invoiceid]))->out() . '" class="btn btn-secondary">' . get_string('cancel') . '</a>';
-	} else if ($cancelmode) {
+	} else if ($cancelmode || $partialcancelmode) {
 		echo '<a href="' . (new moodle_url('/blocks/iomad_commerce/edit_order_form.php', ['id' => $invoiceid, 'editmode' => $editmode ? 1 : 0]))->out() . '" class="btn btn-secondary">' . get_string('back') . '</a>';
 	} else {
 		if ($invoice->status !== 'c') {
 			echo '<a href="' . (new moodle_url('/blocks/iomad_commerce/edit_order_form.php', ['id' => $invoiceid, 'editmode' => 1]))->out() . '" class="btn btn-secondary">Edit</a>';
+            if (!empty($partialcancelitems)) {
+                echo '<a href="' . (new moodle_url('/blocks/iomad_commerce/edit_order_form.php', ['id' => $invoiceid, 'partialcancelmode' => 1]))->out() . '" class="btn btn-secondary">Partial Cancel</a>';
+            }
 		}
 	}
 
-	if (!$editmode && !$cancelmode) {
+	if (!$editmode && !$cancelmode && !$partialcancelmode) {
 	// Cancel invoice as POST form with sesskey (CSRF protected).
 	$xeroinvoice = $DB->get_record('iomad_xero_invoice', ['invoiceid' => $invoiceid], 'invoiceid, xeroinvoiceid');
 	$hasxeroinvoice = !empty($xeroinvoice) && !empty($xeroinvoice->xeroinvoiceid) && $xeroinvoice->xeroinvoiceid !== '00000000-0000-0000-0000-000000000000';
@@ -401,10 +752,132 @@ if ($cancelinvoice && confirm_sesskey()) {
 	    })();
 	    </script>';
 	}
+
+    if ($partialcancelmode) {
+        echo '<div class="card mb-3">';
+        echo '<div class="card-body">';
+        echo '<h5 class="card-title">Partial cancel</h5>';
+        echo '<p class="mb-3">Use this when you only need to cancel part of the order. Open-course items will remove one course place. In-house items will cancel the selected training class and clean up its course place and trainer assignment.</p>';
+
+        if (empty($partialcancelitems)) {
+            echo '<div class="alert alert-info mb-0">There are no active course items available for partial cancellation on this order.</div>';
+        } else {
+            foreach ($partialcancelitems as $partialitem) {
+                $assignedusers = !empty($partialitem->assignedusers) ? $partialitem->assignedusers : [];
+                echo '<div style="border:1px solid #e5e7eb; border-radius:8px; padding:16px; margin-bottom:14px;">';
+                echo '<div style="font-weight:600; margin-bottom:6px;">' . s($partialitem->name) . '</div>';
+                echo '<div style="font-size:13px; color:#555; margin-bottom:12px;">';
+                if (!empty($partialitem->isinhouse)) {
+                    echo 'In-house class cancellation. This will prefix the course name with [CANCELLED], remove the training class activity, unassign the trainer, and delete the related course place.';
+                } else {
+                    echo 'Open course place cancellation. Available places: <strong>' . (int)$partialitem->humanallocation . '</strong>';
+                    echo ' | Assigned delegates: <strong>' . count($assignedusers) . '</strong>';
+                }
+                echo '</div>';
+                echo '<form method="post" style="margin:0;">';
+                echo '<input type="hidden" name="id" value="' . $invoiceid . '" />';
+                echo '<input type="hidden" name="partialcancelmode" value="1" />';
+                echo '<input type="hidden" name="partialcancel" value="1" />';
+                echo '<input type="hidden" name="partial_cancel_itemid" value="' . (int)$partialitem->id . '" />';
+                echo '<input type="hidden" name="sesskey" value="' . sesskey() . '" />';
+
+                if (empty($partialitem->isinhouse)) {
+                    if (!empty($assignedusers)) {
+                        echo '<label style="display:block; font-weight:600; margin-bottom:6px;" for="partial_cancel_user_' . (int)$partialitem->id . '">If this place is already assigned, choose the delegate to unassign</label>';
+                        echo '<select id="partial_cancel_user_' . (int)$partialitem->id . '" name="partial_cancel_userid" class="form-control" style="max-width:360px; margin-bottom:10px;">';
+                        if ((int)$partialitem->humanallocation > count($assignedusers)) {
+                            echo '<option value="0">Cancel an unassigned place</option>';
+                        } else {
+                            echo '<option value="0">Select a delegate</option>';
+                        }
+                        foreach ($assignedusers as $assigneduser) {
+                            echo '<option value="' . (int)$assigneduser->userid . '">' . s(fullname($assigneduser) . ' (' . $assigneduser->email . ')') . '</option>';
+                        }
+                        echo '</select>';
+                    } else {
+                        echo '<div style="font-size:13px; color:#555; margin-bottom:10px;">No delegate is currently assigned, so this will cancel an unassigned place.</div>';
+                    }
+                }
+
+                echo '<button type="submit" class="btn btn-secondary">Confirm Partial Cancel</button>';
+                echo '</form>';
+                echo '</div>';
+            }
+        }
+        echo '</div>';
+        echo '</div>';
+    }
 	}
 
-	if (!$cancelmode) {
+	if (!$cancelmode && !$partialcancelmode) {
 		$mform->display();
+		if ($editmode) {
+			echo '<script>
+			(function() {
+				var form = document.getElementById("order-edit-form");
+				if (!form) {
+					return;
+				}
+
+				var priceInputs = form.querySelectorAll(".js-order-price");
+				var qtyInputs = form.querySelectorAll(".js-order-qty");
+				if (!priceInputs.length && !qtyInputs.length) {
+					return;
+				}
+
+				var formatAmount = function(currency, amount) {
+					return currency + " " + amount.toLocaleString(undefined, {
+						minimumFractionDigits: 2,
+						maximumFractionDigits: 2
+					});
+				};
+
+				var recalcTotals = function() {
+					var grandTotal = 0;
+					var grandCurrency = "";
+					var rowTotals = form.querySelectorAll(".js-order-rowtotal");
+					rowTotals.forEach(function(rowTotal) {
+						var itemId = rowTotal.getAttribute("data-itemid");
+						var priceInput = form.querySelector(".js-order-price[data-itemid=\'" + itemId + "\']");
+						var qtyInput = form.querySelector(".js-order-qty[data-itemid=\'" + itemId + "\']");
+						if (!priceInput || !qtyInput) {
+							return;
+						}
+
+						var price = parseFloat(priceInput.value || "0");
+						var qty = parseInt(qtyInput.value || "0", 10);
+						if (isNaN(price)) {
+							price = 0;
+						}
+						if (isNaN(qty) || qty < 1) {
+							qty = 1;
+						}
+
+						var currency = rowTotal.getAttribute("data-currency") || "";
+						var rowAmount = price * qty;
+						rowTotal.textContent = formatAmount(currency, rowAmount);
+						grandTotal += rowAmount;
+						if (!grandCurrency) {
+							grandCurrency = currency;
+						}
+					});
+
+					var grandTotalEl = document.getElementById("js-order-grand-total");
+					if (grandTotalEl) {
+						grandTotalEl.textContent = formatAmount(grandCurrency, grandTotal);
+					}
+				};
+
+				priceInputs.forEach(function(input) {
+					input.addEventListener("input", recalcTotals);
+				});
+				qtyInputs.forEach(function(input) {
+					input.addEventListener("change", recalcTotals);
+				});
+				recalcTotals();
+			})();
+			</script>';
+		}
 	}
 	echo $OUTPUT->footer();
 }

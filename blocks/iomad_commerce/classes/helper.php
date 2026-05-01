@@ -362,7 +362,7 @@ class helper {
     }
 
     public static function get_invoice_html($invoiceid, $includeremove = 0, $links = 1, $showprocessed = 0) {
-        global $DB, $USER, $CFG;
+        global $DB, $USER, $CFG, $SESSION;
 
         $result = '';
         $multiplecurrency = false;
@@ -412,7 +412,7 @@ class helper {
                 $currency = get_string('GBP', 'core_currencies');
             }
             foreach ($basketitems as $item) {
-                $rowtotal = $item->price * $item->license_allocation;
+                $rowtotal = $item->price * $item->license_allocation * $item->quantity;
 
 		$itemname = $item->name;
 		$itemquantitytext = get_string('type_quantity_' . ($item->license_allocation > 1 ? 'n' : '1') . '_' . $item->invoiceableitemtype, 'block_iomad_commerce', $item->license_allocation);
@@ -442,11 +442,31 @@ class helper {
 		$companyid = \iomad::get_my_companyid(\context_system::instance());
 		$companycontext = \core\context\company::instance($companyid);
 		if (basename($_SERVER['SCRIPT_NAME']) == 'edit_order_form.php' && !empty(optional_param('editmode', 0, PARAM_BOOL)) && $item->invoice_status <> 'c' && iomad::has_capability('block/iomad_ecommerce:editQuotation', $companycontext)) {
-                    $unitprice = '<input type="number" step="0.01" min="0" name="price[' . $item->id . ']" value="' . s(number_format((float)$item->price, 2, '.', '')) . '" style="width:110px;">';
+                    $unitprice = '<input type="number" step="0.01" min="0" name="price[' . $item->id . ']" value="' . s(number_format((float)$item->price, 2, '.', '')) . '" style="width:110px;" class="js-order-price" data-itemid="' . $item->id . '">';
                 } else if ($item->invoiceableitemtype == 'singlepurchase') {
                     $unitprice = '';
                 } else {
                     $unitprice = $item->currency . number_format($item->price, 2);
+                }
+
+                if (basename($_SERVER['SCRIPT_NAME']) == 'edit_order_form.php'
+                        && !empty(optional_param('editmode', 0, PARAM_BOOL))
+                        && $item->invoice_status <> 'c'
+                        && iomad::has_capability('block/iomad_ecommerce:editQuotation', $companycontext)
+                        && !in_array($item->invoiceableitemtype, ['refundadjustment', 'creditnote'], true)) {
+                    $originalquantitylimit = !empty($SESSION->order_edit_quantity_limits[$item->invoiceid][$item->id])
+                        ? max(1, (int)$SESSION->order_edit_quantity_limits[$item->invoiceid][$item->id])
+                        : max(1, (int)$item->quantity);
+                    $maxquantity = max(1, $originalquantitylimit - 1);
+                    $quantityoptions = '';
+                    for ($qty = 1; $qty <= $maxquantity; $qty++) {
+                        $selected = ($qty === (int)$item->quantity) ? ' selected' : '';
+                        $quantityoptions .= '<option value="' . $qty . '"' . $selected . '>' . $qty . '</option>';
+                    }
+                    if ((int)$item->quantity > $maxquantity) {
+                        $quantityoptions .= '<option value="' . (int)$item->quantity . '" selected>' . (int)$item->quantity . '</option>';
+                    }
+                    $itemquantitytext = '<select name="numberofclass[' . $item->id . ']" style="width:82px;" class="js-order-qty" data-itemid="' . $item->id . '">' . $quantityoptions . '</select>';
                 }
 
                 if (!empty($currentcurrency) && $item->currency != $currentcurrency) {
@@ -454,7 +474,7 @@ class helper {
                 } else {
                     $currentcurrency = $item->currency;
                 }
-		if((basename($_SERVER['SCRIPT_NAME']) == 'edit_order_form.php') && !(empty($item->invoice_reference))){
+		if((basename($_SERVER['SCRIPT_NAME']) == 'edit_order_form.php') && !(empty($item->invoice_reference)) && $item->invoice_status !== 'c' && stripos((string)$item->name, '[CANCELLED]') !== 0){
 			$allocatebutton = "";
 			$unallocatebutton = "";
                 	$sqllicense = "SELECT cl.*, cu.courseid as courseid, cu.licenseid AS licenseid FROM {companylicense} cl LEFT JOIN {companylicense_courses} cu ON (cu.licenseid = cl.id) WHERE cl.reference = '".$item->invoice_reference."' AND cu.courseid = ".$item->courseid. " AND cu.licenseid != 0";
@@ -522,13 +542,20 @@ class helper {
 		//var_dump($item->license_startdate);exit;
 		//Begin Customisation: Accellier: For showing correctly in Inhouse Course Order
 		$item_unit = 'NA';
+                $itemquantity = max(1, (int)$item->quantity);
                 if ($item->courseid == 0) {
 			$item_unit = '';
                         if ($item->name == 'Certificate Fee') {
                                 $item_unit = '12 Delegates<br/><span style="color: #bf6600; font-size: small; width: 50px; font-weight: bold;">Note: Final Invoice will be adjusted to actual attendees</span>';
 			}
                 } else if ($item->companyid == 28) {
-			$item_unit = '1 Class (Max 12 Delegates)';
+                        if (basename($_SERVER['SCRIPT_NAME']) == 'edit_order_form.php'
+                                && !empty(optional_param('editmode', 0, PARAM_BOOL))
+                                && !in_array($item->invoiceableitemtype, ['refundadjustment', 'creditnote'], true)) {
+                            $item_unit = $itemquantitytext . ' Class' . ($itemquantity > 1 ? 'es' : '') . ' (Max 12 Delegates)';
+                        } else {
+			    $item_unit = $itemquantity . ' Class' . ($itemquantity > 1 ? 'es' : '') . ' (Max 12 Delegates)';
+                        }
 		}
                 //End Customisation
                 if (in_array($item->invoiceableitemtype, ['refundadjustment', 'creditnote'], true)) {
@@ -548,7 +575,7 @@ class helper {
                     $itemdisplayname,
                     $itemdisplayunit,
                     $unitprice,
-                    $item->currency . ' ' .number_format($rowtotal, 2)
+                    '<span class="js-order-rowtotal" data-itemid="' . $item->id . '" data-currency="' . s($item->currency) . '">' . $item->currency . ' ' . number_format($rowtotal, 2) . '</span>'
                 );
 		if(basename($_SERVER['SCRIPT_NAME']) == 'edit_order_form.php') {
 			$row[] = $allocatebutton.' '.$unallocatebutton;
@@ -575,7 +602,7 @@ class helper {
                     '<b>' . get_string('total', 'block_iomad_commerce') . '</b>',
                     '',
                     '',
-                    '<b>' . $currency . ' ' . number_format($total, 2) . '</b>'
+                    '<b id="js-order-grand-total">' . $currency . ' ' . number_format($total, 2) . '</b>'
                 );
 		if(basename($_SERVER['SCRIPT_NAME']) == 'edit_order_form.php') {
 			$totalrow[] = '';
