@@ -31,6 +31,7 @@ require_once(dirname(__FILE__) . '/../../course/lib.php');
 require_once($CFG->dirroot.'/blocks/iomad_ecommerce/lib.php');
 require_once($CFG->dirroot . '/local/iomad/lib/user.php');
 require_once($CFG->dirroot . '/local/iomad/lib/company.php');
+require_once($CFG->dirroot . '/local/iomad_xero/lib.php');
 
 \block_iomad_commerce\helper::require_commerce_enabled();
 
@@ -144,9 +145,9 @@ if (!empty(optional_param('generateinvoice', 0, PARAM_BOOL)) && confirm_sesskey(
         $DB->update_record('iomad_xero_invoice', $xeroinvoice);
     }
 
-    if (function_exists('task_xero')) {
+    if (function_exists('task_inhouse_xero')) {
         ob_start();
-        task_xero($invoiceid);
+        task_inhouse_xero($invoiceid);
         ob_end_clean();
     }
 
@@ -228,6 +229,8 @@ if ($cancelinvoice && confirm_sesskey()) {
     redirect($companylist);
 } else if ($data = $mform->get_data()) {
 	$postedprices = optional_param_array('price', [], PARAM_RAW_TRIMMED);
+	$xero_sync_needed = false;
+
 	if (isset($data->po_ref)) {
 		$poRef = trim((string)$data->po_ref);
 		$existingpo = $DB->get_record('paygw_po', ['invoiceid' => $invoiceid]);
@@ -235,6 +238,7 @@ if ($cancelinvoice && confirm_sesskey()) {
 			if ($existingpo) {
 				$existingpo->po = $poRef;
 				$DB->update_record('paygw_po', $existingpo);
+				$xero_sync_needed = true;
 			}
 		}
 	}
@@ -257,6 +261,36 @@ if ($cancelinvoice && confirm_sesskey()) {
 
 			$invoiceitem->price = round((float)$newprice, 2);
 			$DB->update_record('invoiceitem', $invoiceitem);
+			$xero_sync_needed = true;
+		}
+	}
+
+	// Synchronously push updated line items (with current prices and PO) to Xero.
+	if ($xero_sync_needed && function_exists('update_xero_invoice_lineitems')) {
+		$xero_result = update_xero_invoice_lineitems($invoiceid);
+		if ($xero_result === null) {
+			// Invoice not yet in Xero — DB changes saved, nothing to push.
+			redirect(
+				new moodle_url('/blocks/iomad_commerce/edit_order_form.php', ['id' => $invoiceid]),
+				get_string('changessaved'),
+				null,
+				\core\output\notification::NOTIFY_SUCCESS
+			);
+		} else if (!$xero_result['success']) {
+			// DB changes saved but Xero push failed — warn the admin.
+			redirect(
+				new moodle_url('/blocks/iomad_commerce/edit_order_form.php', ['id' => $invoiceid]),
+				'Changes saved, but Xero could not be updated: ' . $xero_result['error'],
+				null,
+				\core\output\notification::NOTIFY_WARNING
+			);
+		} else {
+			redirect(
+				new moodle_url('/blocks/iomad_commerce/edit_order_form.php', ['id' => $invoiceid]),
+				'Changes saved and Xero invoice updated successfully.',
+				null,
+				\core\output\notification::NOTIFY_SUCCESS
+			);
 		}
 	}
 
