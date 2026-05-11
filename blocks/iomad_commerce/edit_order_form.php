@@ -73,6 +73,10 @@ function iomad_order_get_cancellable_items(int $invoiceid, string $reference): a
 
     $items = $DB->get_records_sql($sql, ['invoiceid' => $invoiceid, 'reference' => $reference]);
     foreach ($items as $item) {
+        if (stripos((string)$item->name, '[CANCELLED]') === 0 || stripos((string)$item->coursefullname, '[CANCELLED]') === 0) {
+            unset($items[$item->id]);
+            continue;
+        }
         $item->isinhouse = !empty($item->courseidnumber) && strpos((string)$item->courseidnumber, 'INH:') === 0;
         $item->assignedusers = [];
         if (!empty($item->licenseid) && !empty($item->courseid)) {
@@ -291,6 +295,7 @@ if(iomad::has_capability('block/iomad_ecommerce:editQuotation', $companycontext)
         $partialcancel = optional_param('partialcancel', 0, PARAM_BOOL);
         $partialcancelitemid = optional_param('partial_cancel_itemid', 0, PARAM_INT);
         $partialcanceluserid = optional_param('partial_cancel_userid', 0, PARAM_INT);
+        $partialcancelrefundamount = optional_param('partial_cancel_refundamount', 0, PARAM_FLOAT);
         $refundtype = optional_param('refundtype', '', PARAM_ALPHA);
         $refundamount = optional_param('refundamount', 0, PARAM_FLOAT);
 } else {
@@ -301,6 +306,7 @@ if(iomad::has_capability('block/iomad_ecommerce:editQuotation', $companycontext)
         $partialcancel = 0;
         $partialcancelitemid = 0;
         $partialcanceluserid = 0;
+        $partialcancelrefundamount = 0;
         $refundtype = '';
         $refundamount = 0;
 }
@@ -378,6 +384,7 @@ if ($porecord) {
 }
 
 $partialcancelitems = iomad_order_get_cancellable_items($invoiceid, (string)$invoice->reference);
+$canpartialcancel = count($partialcancelitems) > 1;
 
 if ($editmode) {
     if (empty($SESSION->order_edit_quantity_limits) || !is_array($SESSION->order_edit_quantity_limits)) {
@@ -423,6 +430,42 @@ if ($partialcancel && confirm_sesskey()) {
         );
     }
 
+    $maxpartialrefund = 0.0;
+    if (!empty($selecteditem->isinhouse)) {
+        $maxpartialrefund = abs((float)$selecteditem->price) * max(1, (int)$selecteditem->quantity);
+    } else {
+        $maxpartialrefund = abs((float)$selecteditem->price);
+    }
+    $partialrefundvalue = max(0, (float)$partialcancelrefundamount);
+    if ($maxpartialrefund > 0) {
+        $partialrefundvalue = min($partialrefundvalue, $maxpartialrefund);
+    }
+
+    $hasxeroinvoice = $DB->record_exists_select(
+        'iomad_xero_invoice',
+        'invoiceid = :invoiceid AND xeroinvoiceid IS NOT NULL AND xeroinvoiceid <> :emptyid',
+        ['invoiceid' => $invoiceid, 'emptyid' => '00000000-0000-0000-0000-000000000000']
+    );
+    if ($partialrefundvalue > 0 && $hasxeroinvoice) {
+        [$creditnotesuccess, $creditnoteerror, $creditnoteid, $creditnotenumber] =
+            iomad_xero_create_credit_note_for_refund($invoiceid, $partialrefundvalue);
+        if (!$creditnotesuccess) {
+            redirect(
+                new moodle_url('/blocks/iomad_commerce/edit_order_form.php', ['id' => $invoiceid, 'partialcancelmode' => 1]),
+                'Unable to create the Xero credit note for this partial cancellation. ' . $creditnoteerror,
+                null,
+                \core\output\notification::NOTIFY_ERROR
+            );
+        }
+
+        if (!empty($creditnoteid)) {
+            $DB->set_field('iomad_xero_invoice', 'xero_creditnoteid', $creditnoteid, ['invoiceid' => $invoiceid]);
+            if (!empty($creditnotenumber)) {
+                $DB->set_field('iomad_xero_invoice', 'xero_creditnotenumber', $creditnotenumber, ['invoiceid' => $invoiceid]);
+            }
+        }
+    }
+
     $error = '';
     if (!empty($selecteditem->isinhouse)) {
         iomad_order_cancel_inhouse_course($selecteditem, (string)$invoice->reference);
@@ -439,9 +482,24 @@ if ($partialcancel && confirm_sesskey()) {
         );
     }
 
+    if ($partialrefundvalue > 0) {
+        $refundline = new stdClass();
+        $refundline->invoiceid = $invoiceid;
+        $refundline->invoiceableitemid = $selecteditem->invoiceableitemid;
+        $refundline->invoiceableitemtype = 'creditnote';
+        $refundline->quantity = 1;
+        $refundline->currency = $selecteditem->currency;
+        $refundline->price = -1 * $partialrefundvalue;
+        $refundline->license_allocation = !empty($selecteditem->license_allocation) ? $selecteditem->license_allocation : 1;
+        $refundline->processed = 1;
+        $DB->insert_record('invoiceitem', $refundline);
+    }
+
     redirect(
         new moodle_url('/blocks/iomad_commerce/edit_order_form.php', ['id' => $invoiceid]),
-        'Partial cancellation has been applied successfully.',
+        $partialrefundvalue > 0
+            ? 'Partial cancellation and refund have been applied successfully.'
+            : 'Partial cancellation has been applied successfully.',
         null,
         \core\output\notification::NOTIFY_SUCCESS
     );
@@ -665,7 +723,7 @@ if ($cancelinvoice && confirm_sesskey()) {
 	} else {
 		if ($invoice->status !== 'c') {
 			echo '<a href="' . (new moodle_url('/blocks/iomad_commerce/edit_order_form.php', ['id' => $invoiceid, 'editmode' => 1]))->out() . '" class="btn btn-secondary">Edit</a>';
-            if (!empty($partialcancelitems)) {
+            if ($canpartialcancel) {
                 echo '<a href="' . (new moodle_url('/blocks/iomad_commerce/edit_order_form.php', ['id' => $invoiceid, 'partialcancelmode' => 1]))->out() . '" class="btn btn-secondary">Partial Cancel</a>';
             }
 		}
@@ -759,7 +817,9 @@ if ($cancelinvoice && confirm_sesskey()) {
         echo '<h5 class="card-title">Partial cancel</h5>';
         echo '<p class="mb-3">Use this when you only need to cancel part of the order. Open-course items will remove one course place. In-house items will cancel the selected training class and clean up its course place and trainer assignment.</p>';
 
-        if (empty($partialcancelitems)) {
+        if (!$canpartialcancel) {
+            echo '<div class="alert alert-info mb-0">Partial cancellation is only available when the order has more than one active course item.</div>';
+        } else if (empty($partialcancelitems)) {
             echo '<div class="alert alert-info mb-0">There are no active course items available for partial cancellation on this order.</div>';
         } else {
             foreach ($partialcancelitems as $partialitem) {
@@ -768,9 +828,9 @@ if ($cancelinvoice && confirm_sesskey()) {
                 echo '<div style="font-weight:600; margin-bottom:6px;">' . s($partialitem->name) . '</div>';
                 echo '<div style="font-size:13px; color:#555; margin-bottom:12px;">';
                 if (!empty($partialitem->isinhouse)) {
-                    echo 'In-house class cancellation. This will prefix the course name with [CANCELLED], remove the training class activity, unassign the trainer, and delete the related course place.';
+                    echo 'In-house class cancellation. Enter any refund amount first, then confirm. This will prefix the course name with [CANCELLED], remove the training class activity, unassign the trainer, and delete the related course place.';
                 } else {
-                    echo 'Open course place cancellation. Available places: <strong>' . (int)$partialitem->humanallocation . '</strong>';
+                    echo 'Open course place cancellation. Enter any refund amount first, then confirm. Available places: <strong>' . (int)$partialitem->humanallocation . '</strong>';
                     echo ' | Assigned delegates: <strong>' . count($assignedusers) . '</strong>';
                 }
                 echo '</div>';
@@ -780,6 +840,15 @@ if ($cancelinvoice && confirm_sesskey()) {
                 echo '<input type="hidden" name="partialcancel" value="1" />';
                 echo '<input type="hidden" name="partial_cancel_itemid" value="' . (int)$partialitem->id . '" />';
                 echo '<input type="hidden" name="sesskey" value="' . sesskey() . '" />';
+
+                if (!empty($partialitem->isinhouse)) {
+                    $partialrefundmax = abs((float)$partialitem->price) * max(1, (int)$partialitem->quantity);
+                } else {
+                    $partialrefundmax = abs((float)$partialitem->price);
+                }
+                echo '<label style="display:block; font-weight:600; margin-bottom:6px;" for="partial_cancel_refund_' . (int)$partialitem->id . '">Refund amount</label>';
+                echo '<input id="partial_cancel_refund_' . (int)$partialitem->id . '" type="number" step="0.01" min="0" max="' . s(number_format($partialrefundmax, 2, '.', '')) . '" name="partial_cancel_refundamount" value="' . s(number_format($partialrefundmax, 2, '.', '')) . '" class="form-control" style="max-width:220px; margin-bottom:10px;">';
+                echo '<div style="font-size:12px; color:#667085; margin-bottom:12px;">Set this to 0.00 if the partial cancellation should not create any refund.</div>';
 
                 if (empty($partialitem->isinhouse)) {
                     if (!empty($assignedusers)) {

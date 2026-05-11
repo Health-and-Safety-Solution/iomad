@@ -376,13 +376,15 @@ class helper {
                                                ', array('invoiceid' => $invoiceid))) {*/
 
 	
-               if ($basketitems = $DB->get_records_sql('SELECT ii.*, css.name, csc.courseid, i.reference AS invoice_reference, i.status AS invoice_status, css.companyid
+               if ($basketitems = $DB->get_records_sql('SELECT ii.*, css.name, csc.courseid, i.reference AS invoice_reference, i.status AS invoice_status,
+                                                               COALESCE(bes.status, i.status) AS effective_invoice_status, css.companyid
                                                 FROM {invoiceitem} ii
                                                     INNER JOIN {course_shopsettings} css ON ii.invoiceableitemid = css.id
                                                     LEFT JOIN {invoice} i ON i.id = ii.invoiceid
+                                                    LEFT JOIN {blocks_ecommerce_status} bes ON bes.invoiceid = i.id
                                                     LEFT JOIN {course_shopsettings_courses} csc ON ii.invoiceableitemid = csc.itemid
                                                 WHERE ii.invoiceid = :invoiceid
-                                                ORDER BY ii.id
+                                                ORDER BY CASE WHEN LEFT(css.name, 11) = \'[CANCELLED]\' THEN 1 ELSE 0 END, ii.id
                                                ', array('invoiceid' => $invoiceid))) {
             $table = new html_table();
             $table->head = array (get_string('course'),
@@ -412,7 +414,11 @@ class helper {
                 $currency = get_string('GBP', 'core_currencies');
             }
             foreach ($basketitems as $item) {
+                $iscancelledline = stripos((string)$item->name, '[CANCELLED]') === 0;
                 $rowtotal = $item->price * $item->license_allocation * $item->quantity;
+                if ($iscancelledline) {
+                    $rowtotal = 0;
+                }
 
 		$itemname = $item->name;
 		$itemquantitytext = get_string('type_quantity_' . ($item->license_allocation > 1 ? 'n' : '1') . '_' . $item->invoiceableitemtype, 'block_iomad_commerce', $item->license_allocation);
@@ -441,17 +447,18 @@ class helper {
 
 		$companyid = \iomad::get_my_companyid(\context_system::instance());
 		$companycontext = \core\context\company::instance($companyid);
-		if (basename($_SERVER['SCRIPT_NAME']) == 'edit_order_form.php' && !empty(optional_param('editmode', 0, PARAM_BOOL)) && $item->invoice_status <> 'c' && iomad::has_capability('block/iomad_ecommerce:editQuotation', $companycontext)) {
+		if (basename($_SERVER['SCRIPT_NAME']) == 'edit_order_form.php' && !empty(optional_param('editmode', 0, PARAM_BOOL)) && $item->effective_invoice_status <> 'c' && !$iscancelledline && iomad::has_capability('block/iomad_ecommerce:editQuotation', $companycontext)) {
                     $unitprice = '<input type="number" step="0.01" min="0" name="price[' . $item->id . ']" value="' . s(number_format((float)$item->price, 2, '.', '')) . '" style="width:110px;" class="js-order-price" data-itemid="' . $item->id . '">';
                 } else if ($item->invoiceableitemtype == 'singlepurchase') {
                     $unitprice = '';
                 } else {
-                    $unitprice = $item->currency . number_format($item->price, 2);
+                    $unitprice = $iscancelledline ? ($item->currency . ' ' . number_format(0, 2)) : ($item->currency . number_format($item->price, 2));
                 }
 
                 if (basename($_SERVER['SCRIPT_NAME']) == 'edit_order_form.php'
                         && !empty(optional_param('editmode', 0, PARAM_BOOL))
-                        && $item->invoice_status <> 'c'
+                        && $item->effective_invoice_status <> 'c'
+                        && !$iscancelledline
                         && iomad::has_capability('block/iomad_ecommerce:editQuotation', $companycontext)
                         && !in_array($item->invoiceableitemtype, ['refundadjustment', 'creditnote'], true)) {
                     $originalquantitylimit = !empty($SESSION->order_edit_quantity_limits[$item->invoiceid][$item->id])
@@ -474,7 +481,7 @@ class helper {
                 } else {
                     $currentcurrency = $item->currency;
                 }
-		if((basename($_SERVER['SCRIPT_NAME']) == 'edit_order_form.php') && !(empty($item->invoice_reference)) && $item->invoice_status !== 'c' && stripos((string)$item->name, '[CANCELLED]') !== 0){
+		if((basename($_SERVER['SCRIPT_NAME']) == 'edit_order_form.php') && !(empty($item->invoice_reference)) && $item->effective_invoice_status !== 'c' && stripos((string)$item->name, '[CANCELLED]') !== 0){
 			$allocatebutton = "";
 			$unallocatebutton = "";
                 	$sqllicense = "SELECT cl.*, cu.courseid as courseid, cu.licenseid AS licenseid FROM {companylicense} cl LEFT JOIN {companylicense_courses} cu ON (cu.licenseid = cl.id) WHERE cl.reference = '".$item->invoice_reference."' AND cu.courseid = ".$item->courseid. " AND cu.licenseid != 0";
