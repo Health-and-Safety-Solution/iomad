@@ -63,7 +63,9 @@ if(iomad::has_capability('block/iomad_ecommerce:editQuotation', $companycontext)
 $company = new company($companyid);
 
 $invoice = \block_iomad_commerce\helper::get_invoice($invoiceid);
-if ($invoice->status == 'c') {
+$ecommercestatus = $DB->get_record('blocks_ecommerce_status', ['invoiceid' => $invoiceid]);
+$invoiceispaid = $ecommercestatus && $ecommercestatus->status === 'p';
+if ($invoice->status == 'c' || $invoiceispaid) {
 	$editmode = 0;
 }
 if($invoice->companyid != $companyid) {
@@ -308,7 +310,7 @@ if ($cancelinvoice && confirm_sesskey()) {
 	} else if ($cancelmode) {
 		echo '<a href="' . $companylist->out() . '" class="btn btn-secondary">' . get_string('back') . '</a>';
 	} else {
-		if ($invoice->status !== 'c') {
+		if ($invoice->status !== 'c' && !$invoiceispaid) {
 			echo '<a href="' . (new moodle_url('/blocks/iomad_commerce/edit_order_form.php', ['id' => $invoiceid, 'editmode' => 1]))->out() . '" class="btn btn-secondary">Edit</a>';
 		}
 	}
