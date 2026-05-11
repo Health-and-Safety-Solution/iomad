@@ -86,7 +86,7 @@ class order_edit_form extends moodleform {
 			if ($po_detail->status == 'c') {
 				$mform->addElement('static', 'static', 'This order has been <b>Cancelled</b>.');
 			} else {
-				$mform->addElement('static', 'static', 'On Account booking. Inhouse course billed after course completion. Please click edit to update PO Details.');
+				$mform->addElement('static', 'static', 'On Account booking. Inhouse course billed after course completion.');
 			}
 		} else {
 			$mform->addElement('static', 'static', 'On Account booking using PO/Ref# <b>'.$po_detail->po.'</b>. Invoice is '.$pay_status);
@@ -128,6 +128,7 @@ class order_edit_form extends moodleform {
             $mform->addElement('static', 'pp_account', get_string('paymentaccount', 'payment'));
         }
 
-	$this->add_action_buttons(false, get_string('back'));
+        $backurl = new moodle_url('/blocks/iomad_ecommerce/order.php');
+        $mform->addElement('html', '<div class="mt-3"><a href="' . $backurl->out() . '" class="btn btn-secondary">' . get_string('back') . '</a></div>');
     }
 }

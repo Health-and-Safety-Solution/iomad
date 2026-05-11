@@ -306,7 +306,7 @@ if ($cancelinvoice && confirm_sesskey()) {
 		echo '<button type="submit" form="order-edit-form" class="btn btn-primary">' . get_string('savechanges') . '</button>';
 		echo '<a href="' . (new moodle_url('/blocks/iomad_commerce/edit_order_form.php', ['id' => $invoiceid]))->out() . '" class="btn btn-secondary">' . get_string('cancel') . '</a>';
 	} else if ($cancelmode) {
-		echo '<a href="' . (new moodle_url('/blocks/iomad_commerce/edit_order_form.php', ['id' => $invoiceid, 'editmode' => $editmode ? 1 : 0]))->out() . '" class="btn btn-secondary">' . get_string('back') . '</a>';
+		echo '<a href="' . $companylist->out() . '" class="btn btn-secondary">' . get_string('back') . '</a>';
 	} else {
 		if ($invoice->status !== 'c') {
 			echo '<a href="' . (new moodle_url('/blocks/iomad_commerce/edit_order_form.php', ['id' => $invoiceid, 'editmode' => 1]))->out() . '" class="btn btn-secondary">Edit</a>';
@@ -358,7 +358,6 @@ if ($cancelinvoice && confirm_sesskey()) {
 	    echo '<p class="mb-3">Choose whether this cancellation should include a refund adjustment. Full and partial refunds will be added as a negative line item before the order is marked cancelled.</p>';
 	    echo '<form method="post">';
 	    echo '<input type="hidden" name="id" value="' . $invoiceid . '" />';
-	    echo '<input type="hidden" name="editmode" value="1" />';
 	    echo '<input type="hidden" name="cancelmode" value="1" />';
 	    echo '<input type="hidden" name="cancelinvoice" value="1" />';
 	    echo '<input type="hidden" name="sesskey" value="' . sesskey() . '" />';
