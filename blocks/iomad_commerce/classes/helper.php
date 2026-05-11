@@ -411,6 +411,9 @@ class helper {
             } else {
                 $currency = get_string('GBP', 'core_currencies');
             }
+            $statusrecord = $DB->get_record('blocks_ecommerce_status', ['invoiceid' => $invoiceid]);
+            $porecord = $DB->get_record('paygw_po', ['invoiceid' => $invoiceid]);
+            $allowpriceedit = $porecord && (!$statusrecord || $statusrecord->status !== 'p');
             foreach ($basketitems as $item) {
                 $rowtotal = $item->price * $item->license_allocation;
 
@@ -424,7 +427,7 @@ class helper {
 
 		$companyid = \iomad::get_my_companyid(\context_system::instance());
 		$companycontext = \core\context\company::instance($companyid);
-		if (basename($_SERVER['SCRIPT_NAME']) == 'edit_order_form.php' && !empty(optional_param('editmode', 0, PARAM_BOOL)) && $item->invoice_status <> 'c' && iomad::has_capability('block/iomad_ecommerce:editQuotation', $companycontext)) {
+		if (basename($_SERVER['SCRIPT_NAME']) == 'edit_order_form.php' && !empty(optional_param('editmode', 0, PARAM_BOOL)) && $allowpriceedit && $item->invoice_status <> 'c' && iomad::has_capability('block/iomad_ecommerce:editQuotation', $companycontext)) {
                     $unitprice = '<input type="number" step="0.01" min="0" name="price[' . $item->id . ']" value="' . s(number_format((float)$item->price, 2, '.', '')) . '" style="width:110px;">';
                 } else if ($item->invoiceableitemtype == 'singlepurchase') {
                     $unitprice = '';

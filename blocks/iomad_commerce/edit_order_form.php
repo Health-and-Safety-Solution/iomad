@@ -64,8 +64,10 @@ $company = new company($companyid);
 
 $invoice = \block_iomad_commerce\helper::get_invoice($invoiceid);
 $ecommercestatus = $DB->get_record('blocks_ecommerce_status', ['invoiceid' => $invoiceid]);
-$invoiceispaid = $ecommercestatus && $ecommercestatus->status === 'p';
-if ($invoice->status == 'c' || $invoiceispaid) {
+$porecord = $DB->get_record('paygw_po', ['invoiceid' => $invoiceid]);
+// Edit allowed only when order was placed via PO and is not yet marked paid.
+$canedit = $porecord && (!$ecommercestatus || $ecommercestatus->status !== 'p');
+if ($invoice->status == 'c' || !$canedit) {
 	$editmode = 0;
 }
 if($invoice->companyid != $companyid) {
@@ -128,7 +130,6 @@ if (empty($invoice->paymentid)) {
 
 }
 
-$porecord = $DB->get_record('paygw_po', ['invoiceid' => $invoiceid]);
 if ($porecord) {
     $invoice->po_ref = $porecord->po;
 }
@@ -310,7 +311,7 @@ if ($cancelinvoice && confirm_sesskey()) {
 	} else if ($cancelmode) {
 		echo '<a href="' . $companylist->out() . '" class="btn btn-secondary">' . get_string('back') . '</a>';
 	} else {
-		if ($invoice->status !== 'c' && !$invoiceispaid) {
+		if ($invoice->status !== 'c' && $canedit) {
 			echo '<a href="' . (new moodle_url('/blocks/iomad_commerce/edit_order_form.php', ['id' => $invoiceid, 'editmode' => 1]))->out() . '" class="btn btn-secondary">Edit</a>';
 		}
 	}
@@ -319,6 +320,12 @@ if ($cancelinvoice && confirm_sesskey()) {
 	// Cancel invoice as POST form with sesskey (CSRF protected).
 	$xeroinvoice = $DB->get_record('iomad_xero_invoice', ['invoiceid' => $invoiceid], 'invoiceid, xeroinvoiceid');
 	$hasxeroinvoice = !empty($xeroinvoice) && !empty($xeroinvoice->xeroinvoiceid) && $xeroinvoice->xeroinvoiceid !== '00000000-0000-0000-0000-000000000000';
+	$isinhouseinvoice = $DB->record_exists_sql(
+		"SELECT 1 FROM {invoiceitem} ii
+		 INNER JOIN {course_shopsettings} css ON css.id = ii.invoiceableitemid AND css.companyid = 28
+		 WHERE ii.invoiceid = ?",
+		[$invoiceid]
+	);
 
 	if ($invoice->status === 'c') {
 		$title = ($invoice->status === 'c') ? 'Invoice is already cancelled' : 'Inhouse course billed after course completion';
@@ -328,7 +335,7 @@ if ($cancelinvoice && confirm_sesskey()) {
 		}
 	}
 
-	if (!$hasxeroinvoice) {
+	if (!$hasxeroinvoice && $isinhouseinvoice) {
 		if ($invoice->status === 'c') {
 		} else {
 			if(iomad::has_capability('block/iomad_ecommerce:editQuotation', $companycontext)) {
