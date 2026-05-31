@@ -414,6 +414,14 @@ class helper {
             $statusrecord = $DB->get_record('blocks_ecommerce_status', ['invoiceid' => $invoiceid]);
             $porecord = $DB->get_record('paygw_po', ['invoiceid' => $invoiceid]);
             $allowpriceedit = $porecord && (!$statusrecord || $statusrecord->status !== 'p');
+            // Pre-load cancelled line IDs for this invoice to avoid per-row queries.
+            $cancelledids = $DB->get_fieldset_sql(
+                "SELECT ic.invoiceitemid FROM {invoiceitem_cancelled} ic
+                 INNER JOIN {invoiceitem} ii ON ii.id = ic.invoiceitemid
+                 WHERE ii.invoiceid = ?",
+                [$invoiceid]
+            );
+            $cancelledids = array_map('intval', $cancelledids);
             foreach ($basketitems as $item) {
                 $rowtotal = $item->price * $item->license_allocation;
 
@@ -440,9 +448,9 @@ class helper {
                 } else {
                     $currentcurrency = $item->currency;
                 }
-		if((basename($_SERVER['SCRIPT_NAME']) == 'edit_order_form.php') && !(empty($item->invoice_reference))){
-			$allocatebutton = "";
-			$unallocatebutton = "";
+		$allocatebutton = "";
+		$unallocatebutton = "";
+		if((basename($_SERVER['SCRIPT_NAME']) == 'edit_order_form.php') && !(empty($item->invoice_reference)) && !in_array((int)$item->id, $cancelledids)){
                 	$sqllicense = "SELECT cl.*, cu.courseid as courseid, cu.licenseid AS licenseid FROM {companylicense} cl LEFT JOIN {companylicense_courses} cu ON (cu.licenseid = cl.id) WHERE cl.reference = '".$item->invoice_reference."' AND cu.courseid = ".$item->courseid. " AND cu.licenseid != 0";
                 	$licensedata = $DB->get_record_sql($sqllicense);
                 	if(($licensedata->humanallocation <= $licensedata->used) && (!(empty($licensedata->licenseid)))){
@@ -517,8 +525,11 @@ class helper {
 			$item_unit = '1 Class (Max 12 Delegates)';
 		}
                 //End Customisation
+                $cancelledbadge = in_array((int)$item->id, $cancelledids)
+                    ? ' <span class="badge badge-secondary">Cancelled</span>'
+                    : '';
                 $row = array(
-                    ($links ? "<a href='" . new moodle_url($CFG->wwwroot . '/blocks/iomad_commerce/item.php', ['itemid' => $item->invoiceableitemid]) ."'>" .$item->name ."</a>" : $item->name),
+                    ($links ? "<a href='" . new moodle_url($CFG->wwwroot . '/blocks/iomad_commerce/item.php', ['itemid' => $item->invoiceableitemid]) ."'>" .$item->name ."</a>" : $item->name) . $cancelledbadge,
                     ($item_unit == 'NA' ? (get_string('type_quantity_' . ($item->license_allocation > 1 ? 'n' : '1') .
                     '_' . $item->invoiceableitemtype, 'block_iomad_commerce', $item->license_allocation)) : $item_unit),
                     $unitprice,

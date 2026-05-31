@@ -50,12 +50,14 @@ if(iomad::has_capability('block/iomad_ecommerce:editQuotation', $companycontext)
         $editmode = optional_param('editmode', 0, PARAM_BOOL);
         $cancelmode = optional_param('cancelmode', 0, PARAM_BOOL);
         $cancelinvoice = optional_param('cancelinvoice', 0, PARAM_BOOL);
+        $cancellineitems = optional_param('cancellineitems', 0, PARAM_BOOL);
         $refundtype = optional_param('refundtype', '', PARAM_ALPHA);
         $refundamount = optional_param('refundamount', 0, PARAM_FLOAT);
 } else {
         $editmode = 0;
         $cancelmode = 0;
         $cancelinvoice = 0;
+        $cancellineitems = 0;
         $refundtype = '';
         $refundamount = 0;
 }
@@ -154,6 +156,174 @@ if (!empty(optional_param('generateinvoice', 0, PARAM_BOOL)) && confirm_sesskey(
         ob_end_clean();
     }
 
+    redirect(new moodle_url('/blocks/iomad_commerce/edit_order_form.php', ['id' => $invoiceid]));
+}
+
+if ($cancellineitems && confirm_sesskey()) {
+    $selecteditemids = optional_param_array('cancelitems', [], PARAM_INT);
+    $selecteditemids = array_filter(array_map('intval', $selecteditemids));
+    $refundtypes = ['none', 'partial', 'full'];
+    $refundtype  = optional_param('refundtype', 'none', PARAM_ALPHA);
+    $refundamount = optional_param('refundamount', 0, PARAM_FLOAT);
+    if (!in_array($refundtype, $refundtypes, true)) {
+        $refundtype = 'none';
+    }
+
+    $creditnote_errors = [];
+    $hasxeroinvoice = $DB->record_exists('iomad_xero_invoice', ['invoiceid' => $invoiceid]);
+
+    // Sum only the selected, not-yet-cancelled items so the refund value matches the lines being cancelled.
+    $selectedtotal = 0.0;
+    if (!empty($selecteditemids)) {
+        list($insql, $inparams) = $DB->get_in_or_equal($selecteditemids, SQL_PARAMS_QM);
+        $inparams[] = $invoiceid;
+        $selectedtotal = (float)$DB->get_field_sql(
+            "SELECT COALESCE(SUM(ii.price * ii.license_allocation), 0)
+             FROM {invoiceitem} ii
+             WHERE ii.id $insql
+               AND ii.invoiceid = ?
+               AND ii.invoiceableitemtype <> 'refundadjustment'
+               AND NOT EXISTS (SELECT 1 FROM {invoiceitem_cancelled} ic WHERE ic.invoiceitemid = ii.id)",
+            $inparams
+        );
+    }
+    $refundvalue = 0.0;
+    if ($refundtype === 'full') {
+        $refundvalue = $selectedtotal;
+    } else if ($refundtype === 'partial') {
+        $refundvalue = max(0, (float)$refundamount);
+        if ($selectedtotal > 0) {
+            $refundvalue = min($refundvalue, $selectedtotal);
+        }
+    }
+
+    $firstcancelleditemid = null;
+
+    foreach ($selecteditemids as $itemid) {
+        $item = $DB->get_record('invoiceitem', ['id' => $itemid, 'invoiceid' => $invoiceid]);
+        if (!$item || $DB->record_exists('invoiceitem_cancelled', ['invoiceitemid' => $itemid])) {
+            continue;
+        }
+
+        // Mark this line as cancelled.
+        $cancelrec = new stdClass();
+        $cancelrec->invoiceitemid = $itemid;
+        $cancelrec->timecreated   = time();
+        $DB->insert_record('invoiceitem_cancelled', $cancelrec);
+
+        if ($firstcancelleditemid === null) {
+            $firstcancelleditemid = $itemid;
+        }
+
+        // For a full refund create a per-item credit note in Xero for the item's full amount.
+        if ($hasxeroinvoice && function_exists('create_xero_credit_note') && $refundtype === 'full') {
+            $cn_result = create_xero_credit_note($itemid, $invoiceid);
+            if (!$cn_result['success']) {
+                $creditnote_errors[] = 'Item ' . $itemid . ': ' . ($cn_result['error'] ?? 'unknown error');
+            }
+        }
+
+        // Find the course linked to this invoice item.
+        $course = $DB->get_record_sql(
+            "SELECT c.* FROM {course} c
+             LEFT JOIN {course_shopsettings_courses} csc ON csc.courseid = c.id
+             WHERE csc.itemid = ?",
+            [$item->invoiceableitemid]
+        );
+
+        if ($course) {
+            // Append "(Cancelled)" to the course name so it is excluded from future invoice generation.
+            if (strpos($course->fullname, 'Cancelled') === false) {
+                $course->fullname = '[Cancelled] '.$course->fullname;
+                $DB->update_record('course', $course);
+            }
+
+	    //Delete entry from trainingevent and remove all activties linked in course
+	    $DB->delete_records('trainingevent', ['course' => $course->id]);
+	    $DB->delete_records('course_modules', ['course' => $course->id]);
+
+            // Delete licenses specific to this course.
+            $companylicenses = $DB->get_records_sql(
+                "SELECT cl.* FROM {companylicense} cl
+                 INNER JOIN {companylicense_courses} clc ON clc.licenseid = cl.id
+                 WHERE clc.courseid = ? AND cl.reference = ?",
+                [$course->id, $invoice->reference]
+            );
+            foreach ($companylicenses as $companylicense) {
+                $licenseusers = $DB->get_records('companylicense_users', [
+                    'licenseid'       => $companylicense->id,
+                    'licensecourseid' => $course->id,
+                ]);
+                foreach ($licenseusers as $licenseuser) {
+                    if (!empty($licenseuser->userid)) {
+                        company_user::unenrol($licenseuser->userid, [$course->id], $companylicense->companyid);
+                    }
+                    $DB->delete_records('companylicense_users', ['id' => $licenseuser->id]);
+                }
+                company::update_license_usage($companylicense->id);
+		$DB->delete_records('companylicense', ['id' => $companylicense->id]);
+            }
+        }
+    }
+
+    // For a partial refund create a single credit note in Xero for the whole partial amount.
+    if ($hasxeroinvoice && function_exists('create_xero_credit_note') && $refundtype === 'partial' && $refundvalue > 0 && $firstcancelleditemid !== null) {
+        $cn_result = create_xero_credit_note($firstcancelleditemid, $invoiceid, $refundvalue);
+        if (!$cn_result['success']) {
+            $creditnote_errors[] = 'Credit note: ' . ($cn_result['error'] ?? 'unknown error');
+        }
+    }
+
+    // Add refund adjustment line item if a non-zero refund was requested.
+    if ($refundvalue > 0) {
+        $baseitem = $DB->get_record('course_shopsettings', ['name' => 'Refund after deducting Cancellation Charges'], 'id,single_purchase_currency', IGNORE_MULTIPLE);
+        if ($baseitem) {
+            $refundline = new stdClass();
+            $refundline->invoiceid = $invoiceid;
+            $refundline->invoiceableitemid = $baseitem->id;
+            $refundline->invoiceableitemtype = 'refundadjustment';
+            $refundline->quantity = 1;
+            $refundline->currency = $baseitem->single_purchase_currency;
+            $refundline->price = -1 * $refundvalue;
+            $refundline->license_allocation = 1;
+            $refundline->license_validlength = 0;
+            $refundline->license_shelflife = 0;
+            $refundline->processed = 1;
+            $DB->insert_record('invoiceitem', $refundline);
+        }
+    }
+
+    // If all non-surcharge lines are now cancelled, mark the whole invoice cancelled.
+    $activecount = $DB->count_records_sql(
+        "SELECT COUNT(*) FROM {invoiceitem} ii
+         WHERE ii.invoiceid = ?
+           AND ii.invoiceableitemtype <> 'refundadjustment'
+           AND NOT EXISTS (SELECT 1 FROM {invoiceitem_cancelled} ic WHERE ic.invoiceitemid = ii.id)",
+        [$invoiceid]
+    );
+    if ($activecount === 0) {
+        $invoice->status = 'c';
+        $DB->update_record('invoice', $invoice);
+        $statusrecord = $DB->get_record('blocks_ecommerce_status', ['invoiceid' => $invoiceid]);
+        if ($statusrecord) {
+            $statusrecord->status = 'c';
+            $DB->update_record('blocks_ecommerce_status', $statusrecord);
+        } else {
+            $statusrecord = new stdClass();
+            $statusrecord->invoiceid = $invoiceid;
+            $statusrecord->status    = 'c';
+            $DB->insert_record('blocks_ecommerce_status', $statusrecord);
+        }
+    }
+
+    if (!empty($creditnote_errors)) {
+        redirect(
+            new moodle_url('/blocks/iomad_commerce/edit_order_form.php', ['id' => $invoiceid]),
+            'Lines cancelled but some Xero credit notes failed: ' . implode('; ', $creditnote_errors),
+            null,
+            \core\output\notification::NOTIFY_WARNING
+        );
+    }
     redirect(new moodle_url('/blocks/iomad_commerce/edit_order_form.php', ['id' => $invoiceid]));
 }
 
@@ -303,6 +473,10 @@ if ($cancelinvoice && confirm_sesskey()) {
 
 	echo $OUTPUT->header();
 
+	if ($invoice->status === 'c') {
+	    echo '<div class="alert alert-danger"><strong>This order has been cancelled.</strong></div>';
+	}
+
 	if(iomad::has_capability('block/iomad_ecommerce:editQuotation', $companycontext)) {
 	echo '<div class="mb-3" style="display:flex;gap:8px;flex-wrap:wrap">';
 	if ($editmode && !$cancelmode) {
@@ -357,50 +531,130 @@ if ($cancelinvoice && confirm_sesskey()) {
 	echo '</div>';
 
 	if ($cancelmode) {
-	    $basket = \block_iomad_commerce\helper::get_basket_by_id($invoiceid, $invoice->status);
-	    $invoicetotal = $basket ? number_format((float)$basket->total, 2, '.', '') : '0.00';
-	    $currency = $basket && !empty($basket->currency) ? $basket->currency : '';
+	    // Fetch all cancellable line items (exclude surcharges and already-cancelled lines).
+	    $cancellableitems = $DB->get_records_sql(
+	        "SELECT ii.*, css.name AS itemname
+	         FROM {invoiceitem} ii
+	         INNER JOIN {course_shopsettings} css ON css.id = ii.invoiceableitemid
+	         WHERE ii.invoiceid = ?
+	           AND ii.invoiceableitemtype <> 'refundadjustment'
+	           AND NOT EXISTS (SELECT 1 FROM {invoiceitem_cancelled} ic WHERE ic.invoiceitemid = ii.id)",
+	        [$invoiceid]
+	    );
 
 	    echo '<div class="card mb-3">';
 	    echo '<div class="card-body">';
-	    echo '<h5 class="card-title">Cancel order</h5>';
-	    echo '<p class="mb-3">Choose whether this cancellation should include a refund adjustment. Full and partial refunds will be added as a negative line item before the order is marked cancelled.</p>';
-	    echo '<form method="post">';
-	    echo '<input type="hidden" name="id" value="' . $invoiceid . '" />';
-	    echo '<input type="hidden" name="cancelmode" value="1" />';
-	    echo '<input type="hidden" name="cancelinvoice" value="1" />';
-	    echo '<input type="hidden" name="sesskey" value="' . sesskey() . '" />';
-	    echo '<div class="mb-3">';
-	    echo '<label for="id_refundtype"><strong>Refund type</strong></label>';
-	    echo '<select id="id_refundtype" name="refundtype" class="form-control" style="max-width:320px;">';
-	    echo '<option value="none">No refund</option>';
-	    echo '<option value="partial">Partial refund</option>';
-	    echo '<option value="full">Full refund (' . s(trim($currency . ' ' . $invoicetotal)) . ')</option>';
-	    echo '</select>';
-	    echo '</div>';
-	    echo '<div class="mb-3" id="partial-refund-amount" style="display:none;">';
-	    echo '<label for="id_refundamount"><strong>Partial refund amount</strong></label>';
-	    echo '<input id="id_refundamount" type="number" step="0.01" min="0" max="' . s($invoicetotal) . '" name="refundamount" value="' . s($invoicetotal) . '" class="form-control" style="max-width:220px;">';
-	    echo '<div class="form-text">Only used when "Partial refund" is selected.</div>';
-	    echo '</div>';
-	    echo '<button type="submit" class="btn btn-danger">Confirm cancellation</button>';
-	    echo '</form>';
-	    echo '</div>';
-	    echo '</div>';
-	    echo '<script>
-	    (function() {
-	        var refundType = document.getElementById("id_refundtype");
-        	var partialRefund = document.getElementById("partial-refund-amount");
-	        if (!refundType || !partialRefund) {
-        	    return;
+	    echo '<h5 class="card-title">Cancel lines</h5>';
+	    echo '<p class="mb-3">Select which lines to cancel. For lines already invoiced in Xero a credit note will be created automatically. Cancelling all lines will also cancel the order.</p>';
+
+	    if (empty($cancellableitems)) {
+	        echo '<p class="text-muted">All lines have already been cancelled.</p>';
+	    } else {
+	        // Sum only the cancellable items shown so the refund ceiling is correct.
+	        $invoicetotal_raw = 0.0;
+	        $currency = '';
+	        foreach ($cancellableitems as $ci_tmp) {
+	            $invoicetotal_raw += (float)$ci_tmp->price * (int)$ci_tmp->license_allocation;
+	            if (empty($currency) && !empty($ci_tmp->currency)) {
+	                $currency = $ci_tmp->currency;
+	            }
 	        }
-        	var togglePartialRefund = function() {
-	            partialRefund.style.display = refundType.value === "partial" ? "block" : "none";
-        	};
-	        refundType.addEventListener("change", togglePartialRefund);
-        	togglePartialRefund();
-	    })();
-	    </script>';
+	        $invoicetotal = number_format($invoicetotal_raw, 2, '.', '');
+
+	        echo '<form method="post">';
+	        echo '<input type="hidden" name="id" value="' . $invoiceid . '" />';
+	        echo '<input type="hidden" name="cancelmode" value="1" />';
+	        echo '<input type="hidden" name="cancellineitems" value="1" />';
+	        echo '<input type="hidden" name="sesskey" value="' . sesskey() . '" />';
+
+	        echo '<table class="table table-sm mb-3">';
+	        echo '<thead><tr><th style="width:40px;"></th><th>Course</th><th class="text-right">Qty</th><th class="text-right">Unit price</th><th class="text-right">Total</th></tr></thead>';
+	        echo '<tbody>';
+	        foreach ($cancellableitems as $ci) {
+	            $course = $DB->get_record_sql(
+	                "SELECT c.fullname FROM {course} c LEFT JOIN {course_shopsettings_courses} csc ON csc.courseid = c.id WHERE csc.itemid = ?",
+	                [$ci->invoiceableitemid]
+	            );
+	            $displayname = $course ? $course->fullname : s($ci->itemname);
+	            $linetotal_raw = (float)$ci->price * (int)$ci->license_allocation;
+	            $linetotal = number_format($linetotal_raw, 2);
+	            $unitprice = number_format((float)$ci->price, 2);
+	            echo '<tr>';
+	            echo '<td><input type="checkbox" name="cancelitems[]" value="' . (int)$ci->id . '" class="cancel-line-check" data-linetotal="' . number_format($linetotal_raw, 2, '.', '') . '" /></td>';
+	            echo '<td>' . s($displayname) . '</td>';
+	            echo '<td class="text-right">' . (int)$ci->license_allocation . '</td>';
+	            echo '<td class="text-right">' . s($ci->currency) . ' ' . $unitprice . '</td>';
+	            echo '<td class="text-right">' . s($ci->currency) . ' ' . $linetotal . '</td>';
+	            echo '</tr>';
+	        }
+	        echo '</tbody></table>';
+
+	        echo '<div class="mb-3">';
+	        echo '<label for="id_refundtype"><strong>Refund adjustment</strong></label>';
+	        echo '<p class="text-muted small mb-1">A refund adjustment line item will be added to the order. For invoices already in Xero, raise a separate credit note manually if needed.</p>';
+	        echo '<select id="id_refundtype" name="refundtype" class="form-control" style="max-width:320px;">';
+	        echo '<option value="none">No refund</option>';
+	        echo '<option value="partial">Partial refund</option>';
+	        echo '<option value="full" id="opt-full-refund">Full refund (' . s($currency) . ' 0.00)</option>';
+	        echo '</select>';
+	        echo '</div>';
+	        echo '<div class="mb-3" id="partial-refund-amount" style="display:none;">';
+	        echo '<label for="id_refundamount"><strong>Partial refund amount</strong></label>';
+	        echo '<input id="id_refundamount" type="number" step="0.01" min="0" max="0" name="refundamount" value="0" class="form-control" style="max-width:220px;">';
+	        echo '</div>';
+
+	        echo '<button type="submit" class="btn btn-danger" id="cancel-lines-btn" disabled>Cancel selected lines</button>';
+	        echo '</form>';
+	        $js_currency = s($currency);
+	        echo '<script>
+	        (function() {
+	            var checks = document.querySelectorAll(".cancel-line-check");
+	            var btn = document.getElementById("cancel-lines-btn");
+	            var refundType = document.getElementById("id_refundtype");
+	            var partialDiv = document.getElementById("partial-refund-amount");
+	            var partialInput = document.getElementById("id_refundamount");
+	            var fullOption = document.getElementById("opt-full-refund");
+	            var currency = ' . json_encode($currency) . ';
+
+	            function getSelectedTotal() {
+	                var total = 0;
+	                Array.prototype.forEach.call(checks, function(c) {
+	                    if (c.checked) {
+	                        total += parseFloat(c.getAttribute("data-linetotal")) || 0;
+	                    }
+	                });
+	                return Math.round(total * 100) / 100;
+	            }
+
+	            function updateSelectionState() {
+	                var total = getSelectedTotal();
+	                btn.disabled = (total === 0);
+	                var formatted = total.toFixed(2);
+	                fullOption.textContent = "Full refund (" + currency + " " + formatted + ")";
+	                partialInput.setAttribute("max", formatted);
+	                if (parseFloat(partialInput.value) > total) {
+	                    partialInput.value = formatted;
+	                }
+	            }
+
+	            function toggleRefund() {
+	                partialDiv.style.display = refundType.value === "partial" ? "block" : "none";
+	            }
+
+	            Array.prototype.forEach.call(checks, function(c) {
+	                c.addEventListener("change", function() {
+	                    updateSelectionState();
+	                });
+	            });
+	            refundType.addEventListener("change", toggleRefund);
+	            updateSelectionState();
+	            toggleRefund();
+	        })();
+	        </script>';
+	    }
+
+	    echo '</div>';
+	    echo '</div>';
 	}
 	}
 
