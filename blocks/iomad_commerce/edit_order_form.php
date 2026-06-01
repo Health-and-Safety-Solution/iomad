@@ -225,22 +225,25 @@ if ($cancellineitems && confirm_sesskey()) {
 
         // Find the course linked to this invoice item.
         $course = $DB->get_record_sql(
-            "SELECT c.* FROM {course} c
+            "SELECT c.*,css.companyid FROM {course} c
              LEFT JOIN {course_shopsettings_courses} csc ON csc.courseid = c.id
+	     LEFT JOIN {course_shopsettings} css ON css.id = csc.itemid
              WHERE csc.itemid = ?",
             [$item->invoiceableitemid]
         );
 
         if ($course) {
-            // Append "(Cancelled)" to the course name so it is excluded from future invoice generation.
-            if (strpos($course->fullname, 'Cancelled') === false) {
-                $course->fullname = '[Cancelled] '.$course->fullname;
-                $DB->update_record('course', $course);
-            }
+	    if ($course->companyid == 28) {
+		// Append "(Cancelled)" to the course name so it is excluded from future invoice generation.
+		if (strpos($course->fullname, 'Cancelled') === false) {
+			$course->fullname = '[Cancelled] '.$course->fullname;
+			$DB->update_record('course', $course);
+		}
 
-	    //Delete entry from trainingevent and remove all activties linked in course
-	    $DB->delete_records('trainingevent', ['course' => $course->id]);
-	    $DB->delete_records('course_modules', ['course' => $course->id]);
+		//Delete entry from trainingevent and remove all activties linked in course
+		$DB->delete_records('trainingevent', ['course' => $course->id]);
+		$DB->delete_records('course_modules', ['course' => $course->id]);
+	    }
 
             // Delete licenses specific to this course.
             $companylicenses = $DB->get_records_sql(
@@ -423,7 +426,7 @@ if ($cancelinvoice && confirm_sesskey()) {
 			}
 
 			$invoiceitem = $DB->get_record('invoiceitem', ['id' => $itemid, 'invoiceid' => $invoiceid]);
-			if (!$invoiceitem || $invoiceitem->invoiceableitemtype === 'refundadjustment') {
+			if (!$invoiceitem || $invoiceitem->invoiceableitemtype === 'refundadjustment' || $DB->record_exists('invoiceitem_cancelled', ['invoiceitemid' => $itemid])) {
 				continue;
 			}
 
@@ -483,7 +486,7 @@ if ($cancelinvoice && confirm_sesskey()) {
 		echo '<button type="submit" form="order-edit-form" class="btn btn-primary">' . get_string('savechanges') . '</button>';
 		echo '<a href="' . (new moodle_url('/blocks/iomad_commerce/edit_order_form.php', ['id' => $invoiceid]))->out() . '" class="btn btn-secondary">' . get_string('cancel') . '</a>';
 	} else if ($cancelmode) {
-		echo '<a href="' . $companylist->out() . '" class="btn btn-secondary">' . get_string('back') . '</a>';
+		echo '<a href="' . (new moodle_url('/blocks/iomad_commerce/edit_order_form.php', ['id' => $invoiceid]))->out() . '" class="btn btn-secondary">' . get_string('back') . '</a>';
 	} else {
 		if ($invoice->status !== 'c' && $canedit) {
 			echo '<a href="' . (new moodle_url('/blocks/iomad_commerce/edit_order_form.php', ['id' => $invoiceid, 'editmode' => 1]))->out() . '" class="btn btn-secondary">Edit</a>';
@@ -531,6 +534,8 @@ if ($cancelinvoice && confirm_sesskey()) {
 	echo '</div>';
 
 	if ($cancelmode) {
+	    $xeroinvoice_cancel = $DB->get_record('iomad_xero_invoice', ['invoiceid' => $invoiceid], 'invoiceid, xeroinvoiceid');
+	    $hasgeneratedinvoice = !empty($xeroinvoice_cancel) && !empty($xeroinvoice_cancel->xeroinvoiceid) && $xeroinvoice_cancel->xeroinvoiceid !== '00000000-0000-0000-0000-000000000000';
 	    // Fetch all cancellable line items (exclude surcharges and already-cancelled lines).
 	    $cancellableitems = $DB->get_records_sql(
 	        "SELECT ii.*, css.name AS itemname
@@ -593,9 +598,11 @@ if ($cancelinvoice && confirm_sesskey()) {
 	        echo '<label for="id_refundtype"><strong>Refund adjustment</strong></label>';
 	        echo '<p class="text-muted small mb-1">A refund adjustment line item will be added to the order. For invoices already in Xero, raise a separate credit note manually if needed.</p>';
 	        echo '<select id="id_refundtype" name="refundtype" class="form-control" style="max-width:320px;">';
-	        echo '<option value="none">No refund</option>';
-	        echo '<option value="partial">Partial refund</option>';
-	        echo '<option value="full" id="opt-full-refund">Full refund (' . s($currency) . ' 0.00)</option>';
+	        if ($hasgeneratedinvoice) {
+	            echo '<option value="none">No refund</option>';
+	            echo '<option value="partial">Partial refund</option>';
+	        }
+	        echo '<option value="full" id="opt-full-refund"' . (!$hasgeneratedinvoice ? ' selected' : '') . '>Full refund (' . s($currency) . ' 0.00)</option>';
 	        echo '</select>';
 	        echo '</div>';
 	        echo '<div class="mb-3" id="partial-refund-amount" style="display:none;">';

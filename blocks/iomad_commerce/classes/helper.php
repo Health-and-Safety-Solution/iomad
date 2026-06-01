@@ -435,7 +435,7 @@ class helper {
 
 		$companyid = \iomad::get_my_companyid(\context_system::instance());
 		$companycontext = \core\context\company::instance($companyid);
-		if (basename($_SERVER['SCRIPT_NAME']) == 'edit_order_form.php' && !empty(optional_param('editmode', 0, PARAM_BOOL)) && $allowpriceedit && $item->invoice_status <> 'c' && iomad::has_capability('block/iomad_ecommerce:editQuotation', $companycontext)) {
+		if (basename($_SERVER['SCRIPT_NAME']) == 'edit_order_form.php' && !empty(optional_param('editmode', 0, PARAM_BOOL)) && $allowpriceedit && $item->invoice_status <> 'c' && $item->invoiceableitemtype !== 'refundadjustment' && !in_array((int)$item->id, $cancelledids) && iomad::has_capability('block/iomad_ecommerce:editQuotation', $companycontext)) {
                     $unitprice = '<input type="number" step="0.01" min="0" name="price[' . $item->id . ']" value="' . s(number_format((float)$item->price, 2, '.', '')) . '" style="width:110px;">';
                 } else if ($item->invoiceableitemtype == 'singlepurchase') {
                     $unitprice = '';
