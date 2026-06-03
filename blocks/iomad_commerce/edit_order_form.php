@@ -240,6 +240,16 @@ if ($cancellineitems && confirm_sesskey()) {
 			$DB->update_record('course', $course);
 		}
 
+		// Unenrol all users from the cancelled course via Moodle's enrol plugin API.
+		// company_user::unenrol() skips licensed courses, so we use the plugin directly.
+		foreach ($DB->get_records('enrol', ['courseid' => $course->id]) as $_enrol_instance) {
+		    $_enrol_plugin = enrol_get_plugin($_enrol_instance->enrol);
+		    if (!$_enrol_plugin) { continue; }
+		    foreach ($DB->get_records('user_enrolments', ['enrolid' => $_enrol_instance->id]) as $_ue) {
+		        $_enrol_plugin->unenrol_user($_enrol_instance, $_ue->userid);
+		    }
+		}
+
 		//Delete entry from trainingevent and remove all activties linked in course
 		$DB->delete_records('trainingevent', ['course' => $course->id]);
 		$DB->delete_records('course_modules', ['course' => $course->id]);
