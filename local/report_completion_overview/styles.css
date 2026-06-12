@@ -75,8 +75,8 @@
 }
 
 #page-local-report_completion_overview-index #region-main > div > div.table-responsive > table > thead > tr > th.header.c0,
-#page-local-report_completion_overview-index #region-main > div > div.table-responsive > table.overviewbyuser > thead > tr > th.header.c1,
-#page-local-report_completion_overview-index #region-main > div > div.table-responsive > table.overviewbyuser > thead > tr > th.header.c2 {
+#page-local-report_completion_overview-index #region-main table.overviewbyuser > thead > tr > th.header.c1,
+#page-local-report_completion_overview-index #region-main table.overviewbyuser > thead > tr > th.header.c2 {
     writing-mode: horizontal-tb;
     align-content: end;
 }

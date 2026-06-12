@@ -3,6 +3,6 @@
 }
 
 .emoji-picker-dialogue .emoji-picker {
-    box-shadow: none !important; /* stylelint-disable-line declaration-no-important */
+    box-shadow: none; /* stylelint-disable-line declaration-no-important */
     border: 0;
 }

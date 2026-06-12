@@ -1,7 +1,7 @@
 input.tool-mfa-verification-code,
 .tool-mfa-verification-code input {
     /* Some elements must be important to override form element*/
-    font-size: 1.5em !important; /* stylelint-disable-line declaration-no-important */
+    font-size: 1.5em; /* stylelint-disable-line declaration-no-important */
     font-family: monospace;
     text-align: center;
     letter-spacing: 1.0em;
