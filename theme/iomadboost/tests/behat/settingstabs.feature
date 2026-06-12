@@ -1,5 +1,5 @@
 @javascript @theme_iomadboost
-Feature: Administration nav tabs
+Feature: Administration nav tabs [iomadboost]
 
   Scenario: See last opened tab in site admin when returning to the page
     Given I log in as "admin"

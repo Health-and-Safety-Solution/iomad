@@ -1,5 +1,5 @@
 @javascript @theme_iomadboost
-Feature: Add a block using iomadboost theme
+Feature: Add a block using iomadboost theme [iomadboost]
   In order to decide the blocks to display in the Add a block list for a theme
   As an administrator
   I need to define them using the unaddableblocks setting

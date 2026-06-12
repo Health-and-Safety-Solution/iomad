@@ -1,5 +1,5 @@
 @block @block_iomad_onlineusers
-Feature: The online users block allow you to see who is currently online
+Feature: The online users block allow you to see who is currently online [iomad_onlineusers]
   In order to enable the online users block on an course page
   As a teacher
   I can add the online users block to a course page

@@ -1,5 +1,5 @@
 @core @core_course @theme_iomadbootstrap
-Feature: Role assignments can be made at the category level in iomadbootstrap
+Feature: Role assignments can be made at the category level in iomadbootstrap [iomadbootstrap]
   In order to grant a user different capabilities
   As a user
   I can assign roles in categories

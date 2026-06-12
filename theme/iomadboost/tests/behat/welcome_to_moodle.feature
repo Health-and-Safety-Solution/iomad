@@ -1,5 +1,5 @@
 @javascript @theme_iomadboost
-Feature: Welcome message on iomadboost
+Feature: Welcome message on iomadboost [iomadboost]
   To be welcome in moodle
   As a User
   I need to see a welcome message on the first page

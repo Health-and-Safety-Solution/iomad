@@ -1,5 +1,5 @@
 @javascript @theme_iomad
-Feature: Region main settings menu
+Feature: Region main settings menu [iomad]
   To navigate in iomad theme I need to use the region main settings menu
 
   Background:

@@ -1,5 +1,5 @@
 @javascript @theme_iomadboost
-Feature: Primary navigation
+Feature: Primary navigation [iomadboost]
   To navigate in iomadboost theme
   As a user
   I need to use the primary navigation

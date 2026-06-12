@@ -1,5 +1,5 @@
 @tool @tool_iomadpolicy
-Feature: Manage policies
+Feature: Manage policies [iomadpolicy]
   In order to manage policies
   As a manager
   I need to be able to create and edit site policies

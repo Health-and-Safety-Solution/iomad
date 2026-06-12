@@ -1,5 +1,5 @@
 @javascript @theme_iomadboost
-Feature: Breadcrumbs navigation
+Feature: Breadcrumbs navigation [iomadboost]
   To navigate in iomadboost theme
   As an admin user
   I should see breadcrumbs

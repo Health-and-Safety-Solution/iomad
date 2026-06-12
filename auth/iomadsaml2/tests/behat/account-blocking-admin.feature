@@ -1,5 +1,5 @@
 @auth @auth_iomadsaml2 @javascript
-Feature: IOMAD SAML2 Account blocking settings
+Feature: IOMAD SAML2 Account blocking settings [iomadsaml2]
   In order to handle Account blocking logging in through and IdP
   As an administrator
   I need to be able to change Account blocking settings in Moodle

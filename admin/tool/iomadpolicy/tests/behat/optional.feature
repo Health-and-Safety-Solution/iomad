@@ -1,5 +1,5 @@
 @tool @tool_iomadpolicy
-Feature: Optional policies
+Feature: Optional policies [iomadpolicy]
   In order to exercise my privacy rights
   As a user
   I should be able to decline iomadpolicy statements and withdraw my previously given consent to them

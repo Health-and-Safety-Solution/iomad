@@ -1,5 +1,5 @@
 @auth @auth_iomadsaml2 @javascript
-Feature: IOMAD SAML2 flagged accounts login
+Feature: IOMAD SAML2 flagged accounts login [iomadsaml2]
   In order to have correct Moodle access
   As a user
   I need to have my account checked for group restrictions when logging in through IOMAD SAML2 service provider

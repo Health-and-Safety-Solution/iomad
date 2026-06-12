@@ -1,5 +1,5 @@
 @javascript @theme_iomad
-Feature: Language selector menu
+Feature: Language selector menu [iomad]
   To be able to set the preferred language for the site
   As a user
   I need to be presented with a language selector menu

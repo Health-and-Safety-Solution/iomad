@@ -1,5 +1,5 @@
 @tool @tool_usertours @theme_iomad
-Feature: Reset a tour for IOMAD
+Feature: Reset a tour for IOMAD [iomad]
   In order to test a tour
   As an administrator
   I can reset the tour to force it to display again

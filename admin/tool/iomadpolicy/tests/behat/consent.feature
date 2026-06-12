@@ -1,5 +1,5 @@
 @tool @tool_iomadpolicy
-Feature: User must accept iomadpolicy managed by this plugin when logging in and signing up
+Feature: User must accept iomadpolicy managed by this plugin when logging in and signing up [iomadpolicy]
   In order to record user agreement to use the site
   As a user
   I need to be able to accept site iomadpolicy during sign up

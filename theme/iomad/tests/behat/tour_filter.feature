@@ -1,5 +1,5 @@
 @tool @tool_usertours @theme_iomad
-Feature: Apply tour filters to a tour for Classic
+Feature: Apply tour filters to a tour for Classic [iomad]
   In order to give more directed tours
   As an administrator
   I need to create a user tour specific to theme Classic

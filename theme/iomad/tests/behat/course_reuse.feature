@@ -1,5 +1,5 @@
 @javascript @theme_iomad
-Feature: Course reuse navigation
+Feature: Course reuse navigation [iomad]
   As a teacher
   I can navigate to course reuse pages
 
