@@ -24,6 +24,9 @@ jobs:
     steps:
       - name: Checking out code
         uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          token: ${{ secrets.SUBMODULE_PAT }}
 
       - name: Configuring node & npm
         uses: actions/setup-node@v4
@@ -106,6 +109,9 @@ jobs:
 
       - name: Checking out code from ${{ env.GITHUB_REF_SLUG }}
         uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          token: ${{ secrets.SUBMODULE_PAT }}
 
       - name: Setting up PHPUnit
         env:
