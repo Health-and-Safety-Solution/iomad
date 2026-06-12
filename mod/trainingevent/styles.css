@@ -1,7 +1,7 @@
 #trainingeventattendancetable {
-   overflow-x: scroll;
-   padding-top: 10px;
-   padding-bottom: 10px;
+    overflow-x: scroll;
+    padding-top: 10px;
+    padding-bottom: 10px;
 }
 
 input[name=usergrade] {
@@ -41,5 +41,5 @@ table.trainingeventdetails {
 .iomaddatesearchform .mform .form-inline .custom-select,
 .iomadusersearchform .mform .form-inline .form-control,
 .iomadusersearchform .mform .form-inline .custom-select {
-    max-width:75%;
+    max-width: 75%;
 }

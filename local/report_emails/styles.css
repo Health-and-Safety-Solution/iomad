@@ -1,5 +1,6 @@
-#page-local-report_emails-index #iomad_course_selector, #page-local-report_emails-index #iomad_template_selector {
-    float:left;
+#page-local-report_emails-index #iomad_course_selector,
+#page-local-report_emails-index #iomad_template_selector {
+    float: left;
 }
 
 #page-local-report_emails-index #iomad_template_selector select {
@@ -18,7 +19,7 @@
 }
 
 #page-local-report_emails-index .mform fieldset {
-    border-bottom: 0px;
+    border-bottom: 0;
 }
 
 .iomadcoursesearchform,
@@ -49,5 +50,5 @@
 .iomaddatesearchform .mform .form-inline .custom-select,
 .iomadusersearchform .mform .form-inline .form-control,
 .iomadusersearchform .mform .form-inline .custom-select {
-    max-width:75%;
+    max-width: 75%;
 }

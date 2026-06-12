@@ -1,21 +1,25 @@
 #page-local-report_license_usage-index .col-md-9 {
-    clear:both;
+    clear: both;
 }
 
-#page-local-report_license_usage-index #iomad_license_selector, #page-local-report_license_usage-index .form-group {
-    float:none;
+#page-local-report_license_usage-index #iomad_license_selector,
+#page-local-report_license_usage-index .form-group {
+    float: none;
 }
 
-#page-local-report_license_usage-index #iomad_license_selector select , #page-local-report_license_usage-index .felement, #page-local-report_license_usage-index .form-check {
+#page-local-report_license_usage-index #iomad_license_selector select,
+#page-local-report_license_usage-index .felement,
+#page-local-report_license_usage-index .form-check {
     background-color: #ddd;
 }
 
-#page-local-report_license_usage-index #iomad_license_selector, #page-local-report_license_usage-index .femptylabel {
+#page-local-report_license_usage-index #iomad_license_selector,
+#page-local-report_license_usage-index .femptylabel {
     padding-bottom: 5px;
     background-color: #fff;
 }
 
-#page-local-report_license_usage-index .femptylabel .felement{
+#page-local-report_license_usage-index .femptylabel .felement {
     background-color: #fff;
 }
 
@@ -23,14 +27,16 @@
     padding-right: 10px;
 }
 
-#page-local-report_license_usage-index #iomad_license_selector select, #page-local-report_license_usage-index .felement, #page-local-report_license_usage-index .form-check {
+#page-local-report_license_usage-index #iomad_license_selector select,
+#page-local-report_license_usage-index .felement,
+#page-local-report_license_usage-index .form-check {
     background-color: #fff;
 }
 
 .iomadcoursesearchform .icons-collapse-expand.collapsed .expanded-icon,
 .iomadcoursesearchform .icons-collapse-expand.collapsed .collapsed-icon,
 .iomaddatesearchform  .icons-collapse-expand.collapsed .expanded-icon,
-.iomaddatesearchform .icons-collapse-expand.collapsed .collapsed-icon{
+.iomaddatesearchform .icons-collapse-expand.collapsed .collapsed-icon {
     font-size: small;
 }
 
@@ -43,7 +49,7 @@
 .iomadcoursesearchform .mform .form-inline .custom-select,
 .iomaddatesearchform .mform .form-inline .form-control,
 .iomaddatesearchform .mform .form-inline .custom-select {
-    max-width:75%;
+    max-width: 75%;
 }
 
 .iomadcoursesearchform,
@@ -74,5 +80,5 @@
 .iomaddatesearchform .mform .form-inline .custom-select,
 .iomadusersearchform .mform .form-inline .form-control,
 .iomadusersearchform .mform .form-inline .custom-select {
-    max-width:75%;
+    max-width: 75%;
 }
