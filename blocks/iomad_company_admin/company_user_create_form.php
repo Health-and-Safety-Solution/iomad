@@ -82,7 +82,7 @@ if (!$company->check_usercount(1)) {
     throw new moodle_exception('maxuserswarning', 'block_iomad_company_admin', $dashboardurl, $maxusers);
 }
 
-$mform = new \block_iomad_company_admin\forms\user_edit_form($PAGE->url, $companyid, $departmentid, $licenseid);
+$mform = new \block_iomad_company_admin\forms\user_edit_form($PAGE->url, array('companyid' => $companyid, 'departmentid' => $departmentid, 'licenseid' => $licenseid));
 if ($mform->is_cancelled()) {
     redirect($dashboardurl);
     die;
@@ -96,8 +96,14 @@ if ($mform->is_cancelled()) {
         $data->companyid = $companyid;
     }
 
+    // Set defaults for removed form options (these are no longer user-configurable)
+    $data->username = !empty($data->username) ? $data->username : $data->email;
+    $data->use_email_as_username = 1;
+    $data->send_password_email = 1;
+    $data->send_email_on = time();
+
     // we dont want to pass a department id right now - we assign any later on.
-    $departmentid = $data->deptid;
+    $departmentid = $data->deptid ?? 0;
     unset($data->departmentid);
     unset($data->deptid);
 
@@ -108,10 +114,7 @@ if ($mform->is_cancelled()) {
     }
 
     if (!$userid = company_user::create($data, $companyid)) {
-        $this->verbose("Error inserting a new user in the database!");
-        if (!$this->get('ignore_errors')) {
-            die();
-        }
+        throw new moodle_exception('errorinsertinguser', 'block_iomad_company_admin');
     }
     $user = new stdclass();
     $user->id = $userid;
@@ -122,18 +125,26 @@ if ($mform->is_cancelled()) {
     \core\event\user_updated::create_from_userid($userid)->trigger();
 
     // Process any department moves or promotions.
-    company::upsert_company_user($userid, $companyid, $departmentid, $data->managertype, $data->educator, false, true);
+    company::upsert_company_user($userid, $companyid, $departmentid, $data->managertype, $data->educator ?? 0, false, true);
 
     // Enrol the user on the courses.
     if (!empty($data->currentcourses)) {
         $userdata = $DB->get_record('user', array('id' => $userid));
-        company_user::enrol($userdata, $data->currentcourses, $companyid, 0, 0, $data->due);
-        foreach ($data->currentcourses as $courseid) {
+        $due = $data->due ?? time() + (365 * 24 * 60 * 60);
+        $currentcourses = array_keys(array_filter((array)$data->currentcourses));
+        if (!empty($currentcourses)) {
+            // Validate seat availability before enrollment
+            $this->validate_course_seats($currentcourses, $companyid);
+            company_user::enrol($userdata, $currentcourses, $companyid, 0, 0, $due);
+        }
+        foreach ($currentcourses as $courseid) {
             $course = $DB->get_record('course', array('id' => $courseid));
-            EmailTemplate::send('user_added_to_course',
-                                ['course' => $course,
-                                 'user' => $userdata,
-                                 'due' => $data->due]);
+            if (!empty($course)) {
+                EmailTemplate::send('user_added_to_course',
+                                    ['course' => $course,
+                                     'user' => $userdata,
+                                     'due' => $due]);
+            }
         }
     }
     // Assign and licenses.
