@@ -12,7 +12,7 @@ define(["jquery", "core/str"], function ($, str) {
     return {
         init: function() {
             const license_form_amount = $("#license_amount_form");
-            if (license_form_amount != null){
+            if (license_form_amount !== null){
                 $("#license_amount_form").on("submit", function(e){
                     e.preventDefault();
                     const licenses = $("#id_nlicenses");
@@ -32,5 +32,5 @@ define(["jquery", "core/str"], function ($, str) {
                 });
             }
         }
-    }
+    };
 });
