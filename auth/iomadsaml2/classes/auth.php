@@ -103,6 +103,8 @@ class auth extends \auth_plugin_base {
     /**
      * Constructor.
      */
+    /** @var string Service provider name (host). */
+    public $spname;
     public $certpem;
     public $certcrt;
     public $metadatalist;
@@ -398,6 +400,12 @@ class auth extends \auth_plugin_base {
      */
     public function error_page($msg) {
         global $PAGE, $OUTPUT, $SESSION;
+
+        // Under PHPUnit, exit() terminates the entire test run; throw a catchable
+        // exception instead so the suite can continue and assert on the error.
+        if (defined('PHPUNIT_TEST') && PHPUNIT_TEST) {
+            throw new \moodle_exception('error', 'auth_iomadsaml2', '', null, $msg);
+        }
 
         // Clean up $SESSION->wantsurl that was set explicitly in {@see auth_iomadsaml2\login},
         // we don't go anywhere.
