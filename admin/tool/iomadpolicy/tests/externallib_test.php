@@ -18,12 +18,12 @@ namespace tool_iomadpolicy;
 
 use externallib_advanced_testcase;
 use tool_mobile\external as external_mobile;
+use core_external\external_api;
 
 defined('MOODLE_INTERNAL') || die();
 
 global $CFG;
 
-require_once($CFG->libdir . '/externallib.php');
 require_once($CFG->dirroot . '/webservice/tests/helpers.php');
 require_once($CFG->dirroot . '/user/externallib.php');
 
