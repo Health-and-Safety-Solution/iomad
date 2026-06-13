@@ -84,6 +84,43 @@ class emails_table extends table_sql {
     }
 
     /**
+     * Render the email subject as a clickable link.
+     *
+     * When clicked, a JavaScript modal is opened which displays
+     * the full email body stored in a hidden DOM container.
+     *
+     * @param object $row Row data containing email subject and body
+     * @return string HTML for subject link and hidden email body container
+     */
+    public function col_subject($row) {
+        $id = 'emailbody_' . $row->emailid;
+
+        $hidden = \html_writer::tag(
+            'div',
+            \html_writer::tag(
+                'div',
+                format_text($row->emailbody, FORMAT_HTML),
+                ['class' => 'email-body-text']
+            ),
+            [
+                'id' => $id,
+                'style' => 'display:none; white-space: pre-wrap;'
+            ]
+        );
+
+        $link = \html_writer::link(
+            '#',
+            format_string($row->subject),
+            [
+                'class' => 'email-body-popup',
+                'data-target' => $id
+            ]
+        );
+
+        return $link . $hidden;
+    }
+
+    /**
      * Generate the display of the user's created timestamp
      * @param object $user the table row being output.
      * @return string HTML content to go inside the td.
