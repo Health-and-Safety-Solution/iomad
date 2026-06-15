@@ -16,11 +16,11 @@
 
 namespace tool_iomadpolicy;
 
-use tool_iomadpolicy\privacy\local\siteiomadpolicy\handler;
+use tool_iomadpolicy\privacy\local\sitepolicy\handler;
 use tool_iomadpolicy\test\helper;
 
 /**
- * Unit tests for the {@link \tool_iomadpolicy\privacy\local\siteiomadpolicy\handler} class.
+ * Unit tests for the {@link \tool_iomadpolicy\privacy\local\sitepolicy\handler} class.
  *
  * @package     tool_iomadpolicy
  * @category    test
@@ -30,7 +30,7 @@ use tool_iomadpolicy\test\helper;
 class siteiomadpolicy_handler_test extends \advanced_testcase {
 
     /**
-     * Test behaviour of the {@link \tool_iomadpolicy\privacy\local\siteiomadpolicy\handler::get_redirect_url()} method.
+     * Test behaviour of the {@link \tool_iomadpolicy\privacy\local\sitepolicy\handler::get_redirect_url()} method.
      */
     public function test_get_redirect_url() {
         $this->resetAfterTest();
@@ -54,7 +54,7 @@ class siteiomadpolicy_handler_test extends \advanced_testcase {
     }
 
     /**
-     * Test behaviour of the {@link \tool_iomadpolicy\privacy\local\siteiomadpolicy\handler::get_embed_url()} method.
+     * Test behaviour of the {@link \tool_iomadpolicy\privacy\local\sitepolicy\handler::get_embed_url()} method.
      */
     public function test_get_embed_url() {
         $this->resetAfterTest();
@@ -80,7 +80,7 @@ class siteiomadpolicy_handler_test extends \advanced_testcase {
     }
 
     /**
-     * Test behaviour of the {@link \tool_iomadpolicy\privacy\local\siteiomadpolicy\handler::accept()} method.
+     * Test behaviour of the {@link \tool_iomadpolicy\privacy\local\sitepolicy\handler::accept()} method.
      */
     public function test_accept() {
         global $DB, $USER;
@@ -118,9 +118,9 @@ class siteiomadpolicy_handler_test extends \advanced_testcase {
     }
 
     /**
-     * Test presence of the {@link \tool_iomadpolicy\privacy\local\siteiomadpolicy\handler::signup_form()} method.
+     * Test presence of the {@link \tool_iomadpolicy\privacy\local\sitepolicy\handler::signup_form()} method.
      */
     public function test_signup_form() {
-        $this->assertTrue(method_exists('\tool_iomadpolicy\privacy\local\siteiomadpolicy\handler', 'signup_form'));
+        $this->assertTrue(method_exists('\tool_iomadpolicy\privacy\local\sitepolicy\handler', 'signup_form'));
     }
 }

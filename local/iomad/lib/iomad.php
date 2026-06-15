@@ -441,7 +441,9 @@ class iomad {
         if ($companyid = iomad::get_my_companyid($contextsystem)) {
             $company = $DB->get_record('company', ['id' => $companyid]);
         } else {
-            $company = (object) ['id' => 0];
+            // User is not assigned to any company (system/admin/CLI/unit tests) -
+            // they are not company-scoped, so do not filter their category list.
+            return $categories;
         }
 
         // Get the cache objects.
@@ -562,6 +564,10 @@ class iomad {
         }
 
         $mycompanyid = self::get_my_companyid($contextsystem);
+        if (empty($mycompanyid)) {
+            // No company for this user (system/admin/CLI/unit tests) - do not filter.
+            return $courses;
+        }
 
         $iomadcourses = array();
         foreach ($courses as $id => $course) {
