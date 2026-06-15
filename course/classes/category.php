@@ -288,7 +288,9 @@ class core_course_category implements renderable, cacheable_object, IteratorAggr
         } else if (!$alwaysreturnhidden && !$coursecat->is_uservisible($user)) {
             // Course category is found but user can not access it.
             if ($strictness == MUST_EXIST) {
-                throw new moodle_exception('cannotviewcategory');
+                global $USER;
+                $pctx = \context_coursecat::instance($coursecat->id);
+                throw new \coding_exception('IOMAD-PROBE cat='.$coursecat->id.' vis='.$coursecat->visible.' paramuid='.(is_object($user)?$user->id:($user===null?'CURRENT':$user)).' USERid='.$USER->id.' cap='.(int)has_capability('moodle/category:viewcourselist', $pctx, $user).' guest='.(int)isguestuser($user));
             }
             $coursecat = null;
         }
