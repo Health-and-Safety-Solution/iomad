@@ -79,8 +79,11 @@ class observer {
         $data = $event->get_data();
         $userid = $data['relateduserid'];
 
-        // Add the user.
+        // Add the user (skip if missing or already tracked - the userid index is unique).
         $user = $DB->get_record('user', array('id' => $userid));
+        if (!$user || $DB->record_exists('local_report_user_logins', array('userid' => $user->id))) {
+            return true;
+        }
         $DB->insert_record('local_report_user_logins', array('userid' => $user->id,
                                                              'created' => $user->timecreated,
                                                              'firstlogin' => null,

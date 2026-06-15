@@ -554,6 +554,10 @@ class observer {
             // We need to get all of the companies which the user is assigned to that has this course available.
         }
         foreach ($companies as $companyid) {
+            // Core/non-company enrolments carry no company; nothing to track against.
+            if (empty($companyid)) {
+                continue;
+            }
             // Check if there is already an entry for this.
             $firstentry = null;
             if ($entries = $DB->get_records('local_iomad_track', ['userid' => $userid,

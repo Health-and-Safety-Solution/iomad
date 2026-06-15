@@ -36,6 +36,7 @@ require_once($CFG->dirroot . '/local/iomad/lib/iomad.php');
  * @copyright  2015 Damyon Wiese
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
+#[\AllowDynamicProperties]
 class template extends persistent {
 
     const TABLE = 'competency_template';
