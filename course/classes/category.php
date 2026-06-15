@@ -288,13 +288,12 @@ class core_course_category implements renderable, cacheable_object, IteratorAggr
         } else if (!$alwaysreturnhidden && !$coursecat->is_uservisible($user)) {
             // Course category is found but user can not access it.
             if ($strictness == MUST_EXIST) {
-                global $USER, $CFG, $DB;
-                $gid = $DB->get_field('role','id',['shortname'=>'guest']);
-                $nl = isset($CFG->notloggedinroleid) ? $CFG->notloggedinroleid : 'UNSET';
-                $dfp = isset($CFG->defaultfrontpageroleid) ? $CFG->defaultfrontpageroleid : 'UNSET';
-                $caps = $DB->get_records('role_capabilities', ['capability'=>'moodle/category:viewcourselist']);
-                $cs = array(); foreach ($caps as $c) { $cs[] = $c->roleid.':'.$c->permission.'@ctx'.$c->contextid; }
-                throw new \coding_exception('IOMAD-PROBE2 notloggedin='.$nl.' frontpage='.$dfp.' guestroleid='.$gid.' vcl=['.implode(',', $cs).']');
+                global $USER, $CFG;
+                $ra = get_role_access($CFG->notloggedinroleid);
+                $rf = array(); if (!empty($ra['rdef'])) { foreach ($ra['rdef'] as $k=>$caps) { if (isset($caps['moodle/category:viewcourselist'])) { $rf[]=$k.'=>'.$caps['moodle/category:viewcourselist']; } } }
+                $ud = get_user_accessdata(0);
+                $uf = array(); if (!empty($ud['rdef'])) { foreach ($ud['rdef'] as $k=>$caps) { if (isset($caps['moodle/category:viewcourselist'])) { $uf[]=$k.'=>'.$caps['moodle/category:viewcourselist']; } } }
+                throw new \coding_exception('IOMAD-PROBE3 nlrole='.$CFG->notloggedinroleid.' roleaccess_vcl=['.implode(',', $rf).'] useraccess_vcl=['.implode(',', $uf).'] rdefkeys='.(isset($ud['rdef'])?count($ud['rdef']):'NORDEF'));
             }
             $coursecat = null;
         }
