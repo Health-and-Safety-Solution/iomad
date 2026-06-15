@@ -428,6 +428,11 @@ class iomad {
             return $categories;
         }
 
+        // No companies defined yet (fresh site / unit tests) - nothing to filter against.
+        if (!$DB->record_exists('company', [])) {
+            return $categories;
+        }
+
         // Check if its the client admin.
         if (self::has_capability('block/iomad_company_admin:company_view_all', $contextsystem) && empty($userid)) {
             return $categories;
@@ -545,6 +550,11 @@ class iomad {
         global $DB, $USER;
 
         $contextsystem = context_system::instance();
+
+        // No companies defined yet (fresh site / unit tests) - nothing to filter against.
+        if (!$DB->get_manager()->table_exists('company') || !$DB->record_exists('company', [])) {
+            return $courses;
+        }
 
         // Check if its the client admin.
         if (self::has_capability('block/iomad_company_admin:company_view_all', $contextsystem)) {
