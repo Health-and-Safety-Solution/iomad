@@ -50,9 +50,6 @@ class user_merged_failure extends user_merged {
         return get_string('eventusermergedfailure', 'tool_iomadmerge');
     }
 
-    public static function get_legacy_eventname() {
-        return 'merging_failed';
-    }
 
     public function get_description() {
         return "The user {$this->userid} tried to merge all user-related data records

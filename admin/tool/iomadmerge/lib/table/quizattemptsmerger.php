@@ -310,7 +310,7 @@ class QuizAttemptsMerger extends GenericTableMerger
             foreach ($quizzes as $quiz) {
                 // https://moodle.org/mod/forum/discuss.php?d=258979
                 // recalculate grades for affected quizzes.
-                quiz_update_all_final_grades($quiz);
+                \mod_quiz\quiz_settings::create($quiz->id)->get_grade_calculator()->recompute_all_final_grades();
             }
         }
     }
