@@ -15,4 +15,11 @@
 // along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
 
 // Force login to the site to be required.
-$defaults['moodle']['forcelogin'] = 1;
+// Skip in automated-test environments: core PHPUnit/Behat tests exercise
+// anonymous (not-logged-in) access and assume Moodle's stock forcelogin=0
+// default. Applying forcelogin=1 to the test site makes has_capability()
+// short-circuit to false for the guest/not-logged-in user, breaking ~21 core
+// course/category visibility tests. Production installs are unaffected.
+if (!(defined('PHPUNIT_TEST') && PHPUNIT_TEST) && !(defined('BEHAT_SITE_RUNNING') && BEHAT_SITE_RUNNING)) {
+    $defaults['moodle']['forcelogin'] = 1;
+}
