@@ -33,8 +33,11 @@ require_once($CFG->dirroot.'/local/iomad/lib/company.php');
 function local_iomad_signup_user_created($user) {
     global $CFG, $DB;
 
-    // check if we already have the user object
-    if (is_int($user)) {
+    // check if we already have the user object. $event->objectid arrives as an
+    // int OR a numeric string (e.g. under PHPUnit), so convert whenever it is not
+    // already an object - is_int() alone misses the string case and later code
+    // then reads ->id on a string.
+    if (!is_object($user)) {
         $user = $DB->get_record('user', array('id' => $user), '*', MUST_EXIST);
     }
 

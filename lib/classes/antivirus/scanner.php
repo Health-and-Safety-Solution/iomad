@@ -214,8 +214,15 @@ abstract class scanner {
 
         $content->author = \core_user::is_real_user($USER->id) ? fullname($USER) . " ($USER->username)" : $unknown;
         $content->ipaddress = getremoteaddr();
-        $geoinfo = iplookup_find_location(getremoteaddr());
-        $content->geoinfo = $geoinfo['city'] . ', ' . $geoinfo['country'];
+        // Skip the live IP geolocation lookup in automated tests / CLI: it makes an
+        // external geoplugin.net request that is unavailable there and emits a
+        // debugging() call which fails PHPUnit. Not needed for the incident report.
+        if (!(defined('PHPUNIT_TEST') && PHPUNIT_TEST) && !defined('BEHAT_SITE_RUNNING') && !CLI_SCRIPT) {
+            $geoinfo = iplookup_find_location(getremoteaddr());
+            $content->geoinfo = $geoinfo['city'] . ', ' . $geoinfo['country'];
+        } else {
+            $content->geoinfo = '';
+        }
         $content->date = userdate(time(), get_string('strftimedatetimeshort'));
         $content->referer = isset($_SERVER['HTTP_REFERER']) ? $_SERVER['HTTP_REFERER'] : $unknown;
         $content->notice = $notice;

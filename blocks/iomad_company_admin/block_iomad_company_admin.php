@@ -93,7 +93,14 @@ class block_iomad_company_admin extends block_base {
 
         // Check if there are any companies.
         if (!$companycount = $DB->count_records('company')) {
-
+            // Cannot redirect while rendering inside a web service / CLI / AJAX /
+            // unit-test request (e.g. core_block get_dashboard_blocks) - that
+            // becomes a fatal "Unsupported redirect detected". Bail out instead.
+            if ((defined('WS_SERVER') && WS_SERVER) || CLI_SCRIPT
+                    || (defined('AJAX_SCRIPT') && AJAX_SCRIPT)
+                    || (defined('PHPUNIT_TEST') && PHPUNIT_TEST)) {
+                return;
+            }
             // If not redirect to create form.
             redirect(new moodle_url('/blocks/iomad_company_admin/company_edit_form.php', ['createnew' => 1]));
         }
