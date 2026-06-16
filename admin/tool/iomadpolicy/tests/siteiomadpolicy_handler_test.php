@@ -102,7 +102,7 @@ class siteiomadpolicy_handler_test extends \advanced_testcase {
         api::make_current($iomadpolicy2->id);
 
         $user1 = $this->getDataGenerator()->create_user();
-        $this->assertEquals(0, $DB->get_field('user', 'iomadpolicyagreed', ['id' => $user1->id]));
+        $this->assertEquals(0, $DB->get_field('user', 'policyagreed', ['id' => $user1->id]));
         $this->assertEmpty($DB->get_records('tool_iomadpolicy_acceptances', ['userid' => $user1->id]));
 
         $this->setUser($user1->id);
@@ -110,7 +110,7 @@ class siteiomadpolicy_handler_test extends \advanced_testcase {
 
         // Only the compulsory iomadpolicy is marked as accepted when accepting via the handler.
         $this->assertTrue(handler::accept());
-        $this->assertEquals(1, $DB->get_field('user', 'iomadpolicyagreed', ['id' => $user1->id]));
+        $this->assertEquals(1, $DB->get_field('user', 'policyagreed', ['id' => $user1->id]));
         $this->assertEquals(1, $USER->policyagreed);
         $this->assertEquals(1, $DB->count_records('tool_iomadpolicy_acceptances', ['userid' => $user1->id]));
         $this->assertTrue($DB->record_exists('tool_iomadpolicy_acceptances', ['userid' => $user1->id,

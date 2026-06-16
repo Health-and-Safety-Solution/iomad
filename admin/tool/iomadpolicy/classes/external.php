@@ -109,7 +109,7 @@ class external extends external_api {
                 list($iomadpolicy['content'], $notusedformat) = \core_external\util::format_text(
                     $version->content,
                     $version->contentformat,
-                    SYSCONTEXTID,
+                    \context_system::instance(),
                     'tool_iomadpolicy',
                     'iomadpolicydocumentcontent',
                     $version->id

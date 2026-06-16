@@ -141,7 +141,7 @@ class externallib_test extends externallib_advanced_testcase {
 
         // Set the handler for the site iomadpolicy, make sure it substitutes link to the siteiomadpolicy.
         $CFG->sitepolicyhandler = 'tool_iomadpolicy';
-        $siteiomadpolicymanager = new \core_privacy\local\siteiomadpolicy\manager();
+        $siteiomadpolicymanager = new \core_privacy\local\sitepolicy\manager();
         $result = external_mobile::get_config();
         $result = \external_api::clean_returnvalue(external_mobile::get_config_returns(), $result);
         $toolsiteiomadpolicy = $siteiomadpolicymanager->get_embed_url();
@@ -166,7 +166,7 @@ class externallib_test extends externallib_advanced_testcase {
         // Set mock site iomadpolicy handler. See function tool_phpunit_site_iomadpolicy_handler() below.
         $CFG->sitepolicyhandler = 'tool_iomadpolicy';
         $this->assertEquals(0, $USER->policyagreed);
-        $siteiomadpolicymanager = new \core_privacy\local\siteiomadpolicy\manager();
+        $siteiomadpolicymanager = new \core_privacy\local\sitepolicy\manager();
 
         // Make sure user can not login.
         $toolconsentpage = $siteiomadpolicymanager->get_redirect_url();
@@ -199,7 +199,7 @@ class externallib_test extends externallib_advanced_testcase {
         $this->resetAfterTest(true);
         $CFG->sitepolicyhandler = 'tool_iomadpolicy';
         $syscontext = \context_system::instance();
-        $siteiomadpolicymanager = new \core_privacy\local\siteiomadpolicy\manager();
+        $siteiomadpolicymanager = new \core_privacy\local\sitepolicy\manager();
 
         $adult = $this->getDataGenerator()->create_user();
 
