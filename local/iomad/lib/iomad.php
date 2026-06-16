@@ -75,6 +75,9 @@ class iomad {
         } else if (self::has_capability('block/iomad_company_admin:edit_departments', $context) && $required) {
             if (!empty($SESSION->currenteditingcompany)) {
                 return $SESSION->currenteditingcompany;
+            } else if ((defined('PHPUNIT_TEST') && PHPUNIT_TEST) || CLI_SCRIPT ||
+                       (defined('WS_SERVER') && WS_SERVER) || (defined('AJAX_SCRIPT') && AJAX_SCRIPT)) {
+                $companyid = 0;
             } else {
                 redirect(new moodle_url('/blocks/iomad_company_admin/index.php'), get_string('pleaseselect', 'block_iomad_company_admin'));
             }
