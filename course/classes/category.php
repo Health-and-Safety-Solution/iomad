@@ -288,12 +288,7 @@ class core_course_category implements renderable, cacheable_object, IteratorAggr
         } else if (!$alwaysreturnhidden && !$coursecat->is_uservisible($user)) {
             // Course category is found but user can not access it.
             if ($strictness == MUST_EXIST) {
-                global $USER, $CFG;
-                $ra = get_role_access($CFG->notloggedinroleid);
-                $rf = array(); if (!empty($ra['rdef'])) { foreach ($ra['rdef'] as $k=>$caps) { if (isset($caps['moodle/category:viewcourselist'])) { $rf[]=$k.'=>'.$caps['moodle/category:viewcourselist']; } } }
-                $ud = get_user_accessdata(0);
-                $uf = array(); if (!empty($ud['rdef'])) { foreach ($ud['rdef'] as $k=>$caps) { if (isset($caps['moodle/category:viewcourselist'])) { $uf[]=$k.'=>'.$caps['moodle/category:viewcourselist']; } } }
-                throw new \coding_exception('IOMAD-PROBE3 nlrole='.$CFG->notloggedinroleid.' roleaccess_vcl=['.implode(',', $rf).'] useraccess_vcl=['.implode(',', $uf).'] rdefkeys='.(isset($ud['rdef'])?count($ud['rdef']):'NORDEF'));
+                throw new moodle_exception('cannotviewcategory');
             }
             $coursecat = null;
         }
