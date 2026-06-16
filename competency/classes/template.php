@@ -117,8 +117,14 @@ class template extends persistent {
      * @return bool
      */
     public static function can_manage_context($context) {
+        if (\iomad::has_capability('moodle/competency:templatemanage', $context)) {
+            return true;
+        }
+        // Company-scoped fallback only for users actually assigned to a company;
+        // a no-company user (system/admin/CLI/unit tests) must not trigger a
+        // MUST_EXIST company(id=0) lookup.
         $companyid = \iomad::get_my_companyid(\context_system::instance(), false);
-        return \iomad::has_capability('moodle/competency:templatemanage', $context) ||
+        return !empty($companyid) &&
                 \iomad::has_capability('moodle/competency:templatemanage', \core\context\company::instance($companyid));
     }
 
@@ -138,8 +144,11 @@ class template extends persistent {
      * @return bool
      */
     public static function can_read_context($context) {
+        if (\iomad::has_capability('moodle/competency:templateview', $context) || self::can_manage_context($context)) {
+            return true;
+        }
         $companyid = \iomad::get_my_companyid(\context_system::instance(), false);
-        return \iomad::has_capability('moodle/competency:templateview', $context) || self::can_manage_context($context) ||
+        return !empty($companyid) &&
                \iomad::has_capability('moodle/competency:templateview', \core\context\company::instance($companyid));
     }
 

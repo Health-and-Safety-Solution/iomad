@@ -195,12 +195,14 @@ class user_competency_plan extends persistent {
 
         // IOMAD.  Set up the user's companyid.
         if (!\iomad::has_capability('block/iomad_company_admin:company_view_all', \context_system::instance())) {
-            $companyid = \iomad::get_my_companyid(\context_system::instance());
-            $companyframeworks = \iomad::get_company_frameworkids($companyid);
-            if (!empty($companyframeworks)) {
-                $sql .= " AND c.competencyframeworkid IN (" . implode(',', array_keys($companytemplates)) . ")";
-            } else {
-                $sql .= " AND 1 = 2";
+            // Company-scoped users only; no company => no filter (see course_competency).
+            if ($companyid = \iomad::get_my_companyid(\context_system::instance())) {
+                $companyframeworks = \iomad::get_company_frameworkids($companyid);
+                if (!empty($companyframeworks)) {
+                    $sql .= " AND c.competencyframeworkid IN (" . implode(',', array_keys($companyframeworks)) . ")";
+                } else {
+                    $sql .= " AND 1 = 2";
+                }
             }
         }
 
