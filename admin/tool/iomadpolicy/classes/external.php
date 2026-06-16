@@ -106,7 +106,7 @@ class external extends external_api {
                 $version = api::get_iomadpolicy_version($versionid);
                 $iomadpolicy['name'] = $version->name;
                 $iomadpolicy['versionid'] = $versionid;
-                list($iomadpolicy['content'], $notusedformat) = external_format_text(
+                list($iomadpolicy['content'], $notusedformat) = \core_external\util::format_text(
                     $version->content,
                     $version->contentformat,
                     SYSCONTEXTID,
