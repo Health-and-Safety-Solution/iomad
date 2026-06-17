@@ -73,7 +73,7 @@ class user_fields {
             $choices[$name] = get_string($name);
         }
 
-        $customfields = profile_get_custom_fields(true);
+        $customfields = profile_get_custom_fields();
 
         if (!empty($customfields)) {
             $result = array_filter($customfields, function($customfield) {
