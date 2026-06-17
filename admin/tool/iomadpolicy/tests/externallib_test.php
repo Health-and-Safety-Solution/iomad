@@ -146,7 +146,7 @@ class externallib_test extends externallib_advanced_testcase {
         $result = external_api::clean_returnvalue(external_mobile::get_config_returns(), $result);
         $toolsiteiomadpolicy = $siteiomadpolicymanager->get_embed_url();
         foreach (array_values($result['settings']) as $r) {
-            if ($r['name'] == 'siteiomadpolicy') {
+            if ($r['name'] == 'sitepolicy') {
                 $configsiteiomadpolicy = $r['value'];
             }
         }
