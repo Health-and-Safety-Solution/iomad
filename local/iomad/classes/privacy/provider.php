@@ -64,6 +64,16 @@ class provider implements
         );
 
         $collection->add_database_table(
+            'company_transient_tokens',
+            [
+                'userid' => 'privacy:metadata:company_transient_tokens:userid',
+                'expires' => 'privacy:metadata:company_transient_tokens:expires',
+                'token' => 'privacy:metadata:company_transient_tokens:token',
+            ],
+            'privacy:metadata:company_transient_tokens'
+        );
+
+        $collection->add_database_table(
             'companylicense_users',
             [
                 'licenseid' => 'privacy:metadata:companylicense_users:licenseid',

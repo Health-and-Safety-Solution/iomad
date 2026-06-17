@@ -70,3 +70,7 @@ $string['show_suspended_users'] = 'Show suspended users?';
 $string['userfilter'] = 'Filter results';
 $string['usersearchfields'] = 'User search';
 $string['show_suspended_companies'] = 'Show suspended companies?';
+$string['privacy:metadata:company_transient_tokens'] = 'Short-lived tokens issued to users for company-scoped operations.';
+$string['privacy:metadata:company_transient_tokens:userid'] = 'The ID of the user the token was issued to.';
+$string['privacy:metadata:company_transient_tokens:expires'] = 'The time the token expires.';
+$string['privacy:metadata:company_transient_tokens:token'] = 'The issued token value.';
