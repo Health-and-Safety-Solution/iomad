@@ -128,6 +128,12 @@ class auth extends \auth_plugin_base {
 
         // IOMAD.
         $companyid = iomad::get_my_companyid(context_system::instance(), false);
+        // get_my_companyid() returns -1 when there is no company context (not
+        // logged in / CLI / unit tests); treat that as the no-company default (0)
+        // so IdP lookups and config postfixes behave correctly.
+        if ($companyid < 0) {
+            $companyid = 0;
+        }
         $postfix = '';
         if (!empty($companyid)) {
             $postfix = "_$companyid";
