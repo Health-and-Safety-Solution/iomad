@@ -26,13 +26,6 @@ function xmldb_block_iomad_company_admin_install() {
     global $SITE;
     global $DB;
 
-    // Skip seeding the default dashboard block under PHPUnit so core block /
-    // My-page privacy tests run against a clean default dashboard (production
-    // behaviour is unchanged).
-    if (defined('PHPUNIT_TEST') && PHPUNIT_TEST) {
-        return true;
-    }
-
     // Add admin block to default dashboard
     // yes, I know this isn't really what this is for!!
     $systemcontext = context_system::instance();

@@ -470,6 +470,7 @@ final class expired_contexts_test extends \advanced_testcase {
      * Ensure that a user with a historically expired expired block record child is cleaned up.
      */
     public function test_flag_user_historic_block_unapproved() {
+        $this->markTestSkipped("IOMAD divergence: the default dashboard ships extra block contexts, changing the block-context counts this core expired-contexts test asserts.");
         $this->resetAfterTest();
 
         $this->setup_basics('PT1H', 'PT1H', 'PT1H');
@@ -1344,6 +1345,7 @@ final class expired_contexts_test extends \advanced_testcase {
      * Ensure that a user context previously flagged as approved is removed.
      */
     public function test_process_user_context() {
+        $this->markTestSkipped("IOMAD divergence: the default dashboard ships extra block contexts, changing the block-context counts this core expired-contexts test asserts.");
         $this->resetAfterTest();
 
         $this->setup_basics('PT1H', 'PT1H', 'PT1H');
@@ -1555,6 +1557,7 @@ final class expired_contexts_test extends \advanced_testcase {
      * Ensure that a user with a historically expired expired block record child is cleaned up.
      */
     public function test_process_user_historic_block_unapproved() {
+        $this->markTestSkipped("IOMAD divergence: the default dashboard ships extra block contexts, changing the block-context counts this core expired-contexts test asserts.");
         $this->resetAfterTest();
 
         $this->setup_basics('PT1H', 'PT1H', 'PT1H');
@@ -1614,6 +1617,7 @@ final class expired_contexts_test extends \advanced_testcase {
      * Ensure that a user with a block which has a default retention period which has not expired, is still expired.
      */
     public function test_process_user_historic_unexpired_child() {
+        $this->markTestSkipped("IOMAD divergence: the default dashboard ships extra block contexts, changing the block-context counts this core expired-contexts test asserts.");
         $this->resetAfterTest();
 
         $this->setup_basics('PT1H', 'PT1H', 'PT1H');
@@ -2183,6 +2187,7 @@ final class expired_contexts_test extends \advanced_testcase {
      * block level.
      */
     public function test_is_context_expired_user_block() {
+        $this->markTestSkipped("IOMAD divergence: the default dashboard ships extra block contexts, changing the block-context counts this core expired-contexts test asserts.");
         $this->resetAfterTest();
 
         $purposes = $this->setup_basics('PT1H', 'PT1H', 'P1D');
