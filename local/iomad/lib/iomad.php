@@ -1869,23 +1869,28 @@ class iomad {
      * @param int $companyid (optional) check for different company (and right to access same).
      * @return bool
      */
-    public static function has_capability($capability, context $context, $companyid = 0) {
+    public static function has_capability($capability, context $context, $user = null, $doanything = true, $companyid = 0) {
         global $USER, $DB;
 
-        // If original version says no then it's no.
+        // Resolve the target user (defaults to the current user). Callers pass a
+        // user id or object as the 3rd argument (e.g. has_any_capability()).
+        $userid = is_object($user) ? $user->id : (empty($user) ? $USER->id : $user);
+
+        // If original version says no then it's no (evaluated for the target user,
+        // honouring $doanything so admin's "do anything" can be ignored).
         // (We also rely on this doing a bunch of sanity checks, so we don't have to)
-        if (!has_capability($capability, $context)) {
+        if (!has_capability($capability, $context, $user, $doanything)) {
             return false;
         }
 
-        // If this is the admin then we'll believe it
-        if (is_siteadmin()) {
+        // If this is the admin then we'll believe it (unless doanything is off).
+        if ($doanything && is_siteadmin($userid)) {
             return true;
         }
 
         // If companyid supplied then check the user is a member
         if ($companyid) {
-            if (!$DB->record_exists('company_users', ['companyid' => $companyid, 'userid' => $USER->id])) {
+            if (!$DB->record_exists('company_users', ['companyid' => $companyid, 'userid' => $userid])) {
                 return false;
             }
         } else {

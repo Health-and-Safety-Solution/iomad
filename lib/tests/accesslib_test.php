@@ -1894,7 +1894,6 @@ final class accesslib_test extends advanced_testcase {
      * @covers ::has_all_capabilities
      */
     public function test_has_capability_and_friends() {
-        $this->markTestSkipped("IOMAD divergence: company role model changes default role capabilities (e.g. editingteacher), so core capability assertions differ.");
         global $DB;
 
         $this->resetAfterTest();
