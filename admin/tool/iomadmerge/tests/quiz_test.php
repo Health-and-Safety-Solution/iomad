@@ -30,6 +30,7 @@
  * @author     John Hoopes <hoopes@wisc.edu>, University of Wisconsin - Madison
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
+#[\AllowDynamicProperties]
 class tool_iomadmerge_quiz_testcase extends advanced_testcase {
     /**
      * Configure the test.

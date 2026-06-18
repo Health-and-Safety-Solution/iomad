@@ -60,6 +60,7 @@
  * If the key 'both' appears, means that both columns are user-related and must be searched for
  * both. See the README.txt for more details on special cases.
  */
+#[\AllowDynamicProperties]
 class tool_iomadmerge_config {
     /**
      * @var tool_iomadmerge_config singleton instance.
