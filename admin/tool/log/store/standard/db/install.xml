@@ -27,6 +27,7 @@
         <FIELD NAME="origin" TYPE="char" LENGTH="10" NOTNULL="false" SEQUENCE="false" COMMENT="cli, cron, ws, etc."/>
         <FIELD NAME="ip" TYPE="char" LENGTH="45" NOTNULL="false" SEQUENCE="false" COMMENT="IP address"/>
         <FIELD NAME="realuserid" TYPE="int" LENGTH="10" NOTNULL="false" SEQUENCE="false" COMMENT="real user id when logged-in-as"/>
+        <FIELD NAME="companyid" TYPE="int" LENGTH="10" NOTNULL="false" SEQUENCE="false" COMMENT="IOMAD company id at time of event"/>
       </FIELDS>
       <KEYS>
         <KEY NAME="primary" TYPE="primary" FIELDS="id"/>
