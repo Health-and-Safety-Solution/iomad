@@ -61,6 +61,11 @@ abstract class object_factor_base implements object_factor {
         // IOMAD
         require_once($CFG->dirroot . '/local/iomad/lib/company.php');
         $this->companyid = iomad::get_my_companyid(context_system::instance(), false);
+        // get_my_companyid() returns -1 with no company context; treat as 0 so the
+        // empty() checks and config postfix behave correctly under CLI/PHPUnit/admin.
+        if ($this->companyid < 0) {
+            $this->companyid = 0;
+        }
         if (!empty($this->companyid) &&
             get_config('tool_mfa', 'enabled'. "_" . $this->companyid) !== false) {
             $this->postfix = "_" . $this->companyid;
