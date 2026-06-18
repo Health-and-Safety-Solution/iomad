@@ -38,6 +38,9 @@ require_once($CFG->dirroot . '/auth/iomadoidc/lib.php');
  * OpenID Connect Client
  */
 class iomadoidcclient {
+
+    /** @var string OIDC scope. */
+    protected $scope;
     /** @var httpclientinterface An HTTP client to use. */
     protected $httpclient;
 

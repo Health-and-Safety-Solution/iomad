@@ -69,6 +69,14 @@ class condition extends \core_availability\condition {
         return $result;
     }
 
+    public function update_dependency_id($table, $oldid, $newid) {
+        if ($table === 'companys' && $this->companyid == $oldid) {
+            $this->companyid = $newid;
+            return true;
+        }
+        return false;
+    }
+
     public function is_available($not, \core_availability\info $info, $grabthelot, $userid) {
         global $DB;
 

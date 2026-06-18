@@ -38,6 +38,9 @@ require_once(__DIR__ . '/../db/dbassignsubmission.php');
 
 class AssignSubmissionTableMerger extends GenericTableMerger {
 
+    /** @var AssignSubmissionDuplicatedDataMerger Duplicated-data merger instance. */
+    protected $duplicateddatamerger;
+
     private $findassignsubmissions;
 
     public function __construct() {
