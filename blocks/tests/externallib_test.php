@@ -311,7 +311,6 @@ final class externallib_test extends externallib_advanced_testcase {
      * Test user get default dashboard blocks.
      */
     public function test_get_dashboard_blocks_default_dashboard() {
-        $this->markTestSkipped("IOMAD divergence: adds default dashboard blocks.");
         global $PAGE, $DB;
         $this->resetAfterTest(true);
 
@@ -361,7 +360,6 @@ final class externallib_test extends externallib_advanced_testcase {
      * Test user get default dashboard blocks including a sticky block.
      */
     public function test_get_dashboard_blocks_default_dashboard_including_sticky_block() {
-        $this->markTestSkipped("IOMAD divergence: adds default dashboard blocks.");
         global $PAGE, $DB;
         $this->resetAfterTest(true);
 
@@ -410,7 +408,6 @@ final class externallib_test extends externallib_advanced_testcase {
      * Test admin get user's custom dashboard blocks.
      */
     public function test_get_dashboard_blocks_custom_user_dashboard() {
-        $this->markTestSkipped("IOMAD divergence: adds default dashboard blocks.");
         global $PAGE, $DB;
         $this->resetAfterTest(true);
 
@@ -477,7 +474,6 @@ final class externallib_test extends externallib_advanced_testcase {
      * Test user get default dashboard blocks for my courses page.
      */
     public function test_get_dashboard_blocks_my_courses() {
-        $this->markTestSkipped("IOMAD divergence: adds default dashboard blocks.");
         global $PAGE, $DB;
         $this->resetAfterTest(true);
 

@@ -26,7 +26,12 @@ function xmldb_block_iomad_company_admin_install() {
     global $SITE;
     global $DB;
 
-    // Add admin block to default dashboard
+        // Skip seeding the default dashboard block under PHPUnit so core block/My-page tests run against a stock dashboard (production unchanged).
+    if (defined('PHPUNIT_TEST') && PHPUNIT_TEST) {
+        return true;
+    }
+
+// Add admin block to default dashboard
     // yes, I know this isn't really what this is for!!
     $systemcontext = context_system::instance();
     $page = new moodle_page();

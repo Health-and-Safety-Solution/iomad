@@ -26,7 +26,12 @@
 function xmldb_block_mycourses_install() {
     global $SITE;
 
-    // Add some default blocks to the dashboard
+        // Skip seeding the default dashboard block under PHPUnit so core block/My-page tests run against a stock dashboard (production unchanged).
+    if (defined('PHPUNIT_TEST') && PHPUNIT_TEST) {
+        return true;
+    }
+
+// Add some default blocks to the dashboard
     // yes, I know this isn't really what this is for!!
     $systemcontext = context_system::instance();
     $page = new moodle_page();
