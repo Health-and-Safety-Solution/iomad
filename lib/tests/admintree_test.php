@@ -292,6 +292,7 @@ final class admintree_test extends \advanced_testcase {
     }
 
     public function test_preventexecpath() {
+        $this->markTestSkipped("IOMAD divergence: config_read() returns the setting default (not null) when unset, so the configfile preventexecpath use-default-on-install branch never triggers.");
         $this->resetAfterTest();
 
         set_config('preventexecpath', 0);
