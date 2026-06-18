@@ -112,12 +112,12 @@ class fetcher {
         $params['name'] = 'block_iomad_onlineusers_uservisibility';
 
         // IOMAD - deal with companies.
-        $companysql = " AND 1=2 ";
+        $companysql = "";
         $systemcontext = context_system::instance();
 
         // Set the companyid
         $companyid = iomad::get_my_companyid($systemcontext, false);
-        if (!empty($companyid)) {
+        if ($companyid > 0) {
             $companysql = " AND u.id IN (SELECT userid FROM {company_users} WHERE companyid = :companyid) ";
             $params['companyid'] = $companyid;
         } else {

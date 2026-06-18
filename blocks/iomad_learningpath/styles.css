@@ -14,9 +14,10 @@
 }
 
 .card-block .alert {
-    padding: 0.5rem 1rem !important;
+    padding: 0.5rem 1rem;
 }
 
-.card-block .coursetitle, .card-block .learningpathtitle {
+.card-block .coursetitle,
+.card-block .learningpathtitle {
     font-size: 1.5rem;
 }

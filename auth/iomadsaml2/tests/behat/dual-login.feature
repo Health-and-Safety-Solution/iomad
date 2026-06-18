@@ -1,5 +1,5 @@
 @auth @auth_iomadsaml2 @javascript
-Feature: IOMAD SAML2 Dual Login
+Feature: IOMAD SAML2 Dual Login [iomadsaml2]
   In order use Moodle login or IOMAD SAML2 login
   As a user
   I need to login into IOMAD SAML2 or Moodle depending on the Dual Login setting

@@ -1,57 +1,57 @@
 #page-local-report_completion_overview-index .dot {
-  height: 25px;
-  width: 25px;
-  background-color: #bbb;
-  border-radius: 50%;
-  display: inline-block;
+    height: 25px;
+    width: 25px;
+    background-color: #bbb;
+    border-radius: 50%;
+    display: inline-block;
 }
 
 #page-local-report_completion_overview-index .notenrolled {
-  background-color: #bbb;
+    background-color: #bbb;
 }
 
 #page-local-report_completion_overview-index .notenrolled-outdate {
-  background: linear-gradient(to right, darkred 50%, #bbb 50%);
+    background: linear-gradient(to right, darkred 50%, #bbb 50%);
 }
 
 #page-local-report_completion_overview-index .notenrolled-indate {
-  background: linear-gradient(to right, darkgreen 50%, #bbb 50%);
+    background: linear-gradient(to right, darkgreen 50%, #bbb 50%);
 }
 
 #page-local-report_completion_overview-index .notenrolled-expiring {
-  background: linear-gradient(to right, darkorange 50%, #bbb 50%);
+    background: linear-gradient(to right, darkorange 50%, #bbb 50%);
 }
 
 #page-local-report_completion_overview-index .notcompleted {
-  background-color: darkblue;
+    background-color: darkblue;
 }
 
 #page-local-report_completion_overview-index .notcompleted-outdate {
-  background: linear-gradient(to right, darkred 50%, darkblue 50%);
+    background: linear-gradient(to right, darkred 50%, darkblue 50%);
 }
 
 #page-local-report_completion_overview-index .notcompleted-indate {
-  background: linear-gradient(to right, darkgreen 50%, darkblue 50%);
+    background: linear-gradient(to right, darkgreen 50%, darkblue 50%);
 }
 
 #page-local-report_completion_overview-index .notcompleted-expiring {
-  background: linear-gradient(to right, darkorange 50%, darkblue 50%);
+    background: linear-gradient(to right, darkorange 50%, darkblue 50%);
 }
 
 #page-local-report_completion_overview-index .expired {
-  background-color: darkred;
+    background-color: darkred;
 }
 
 #page-local-report_completion_overview-index .indate {
-  background-color: darkgreen;
+    background-color: darkgreen;
 }
 
 #page-local-report_completion_overview-index .expiring {
-  background-color: darkorange;
+    background-color: darkorange;
 }
 
 #page-local-report_completion_overview-index .ignored {
-  background-color: white;
+    background-color: white;
 }
 
 #page-local-report_completion_overview-index #region-main > div > div.table-responsive {
@@ -64,7 +64,7 @@
 #page-local-report_completion_overview-index th.header {
     writing-mode: vertical-lr;
     position: sticky;
-    top:0;
+    top: 0;
     background-color: #fff;
     align-content: baseline;
 
@@ -75,16 +75,16 @@
 }
 
 #page-local-report_completion_overview-index #region-main > div > div.table-responsive > table > thead > tr > th.header.c0,
-#page-local-report_completion_overview-index #region-main > div > div.table-responsive > table.overviewbyuser > thead > tr > th.header.c1,
-#page-local-report_completion_overview-index #region-main > div > div.table-responsive > table.overviewbyuser > thead > tr > th.header.c2 {
-    writing-mode: horizontal-tb !important;
+#page-local-report_completion_overview-index #region-main table.overviewbyuser > thead > tr > th.header.c1,
+#page-local-report_completion_overview-index #region-main table.overviewbyuser > thead > tr > th.header.c2 {
+    writing-mode: horizontal-tb;
     align-content: end;
 }
 
 .iomadcoursesearchform .icons-collapse-expand.collapsed .expanded-icon,
 .iomadcoursesearchform .icons-collapse-expand.collapsed .collapsed-icon,
 .datesearchform  .icons-collapse-expand.collapsed .expanded-icon,
-.datesearchform .icons-collapse-expand.collapsed .collapsed-icon{
+.datesearchform .icons-collapse-expand.collapsed .collapsed-icon {
     font-size: small;
 }
 
@@ -97,7 +97,6 @@
 .iomadcoursesearchform .mform .form-inline .custom-select,
 .datesearchform .mform .form-inline .form-control,
 .datesearchform .mform .form-inline .custom-select {
-    max-width:75%;
+    max-width: 75%;
 }
-
 

@@ -188,7 +188,10 @@ class provider implements
         if (empty($context)) {
             return;
         }
-        $instanceid = $DB->get_field('course_modules', 'instance', ['id' => $context->instanceid], MUST_EXIST);
+        $instanceid = $DB->get_field('course_modules', 'instance', ['id' => $context->instanceid], IGNORE_MISSING);
+        if (empty($instanceid)) {
+            return;
+        }
         $DB->delete_records('trainingevent_users', ['trainingeventid' => $instanceid]);
     }
 

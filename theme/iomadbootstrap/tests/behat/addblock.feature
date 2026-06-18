@@ -1,5 +1,5 @@
 @javascript @theme_iomadbootstrap
-Feature: Add a block using iomadbootstrap theme
+Feature: Add a block using iomadbootstrap theme [iomadbootstrap]
   In order to check the blocks to display in the Add a block list for a them
   As an administrator
   I need to confirm the unaddableblocks setting is empty for iomadbootstrap.

@@ -1,5 +1,5 @@
 @javascript @theme_iomad
-Feature: Context settings menu
+Feature: Context settings menu [iomad]
   To navigate in iomad theme I need to use the context settings menu
 
   Background:

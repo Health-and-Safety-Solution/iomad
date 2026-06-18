@@ -26,6 +26,6 @@
 /* Modify Tiny's max-height calculation here to factor in navbar height on small viewports (ignores fullscreen). */
 @media only screen and (max-width: 767px) {
     body:not(.tox-force-desktop) .tox.tox-tinymce:not(.tox-fullscreen) + .tox .tox-dialog-wrap .tox-dialog {
-        max-height: calc((100vh - 8px * 2) - var(--navbar-height)) !important; /* stylelint-disable-line declaration-no-important */
+        max-height: calc((100vh - 8px * 2) - var(--navbar-height)); /* stylelint-disable-line declaration-no-important */
     }
 }

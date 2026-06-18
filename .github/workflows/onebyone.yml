@@ -39,6 +39,9 @@ jobs:
     steps:
       - name: Checking out code
         uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          token: ${{ secrets.SUBMODULE_PAT }}
 
       - name: Looking for all individual tests
         id: individual-tests
@@ -99,6 +102,9 @@ jobs:
 
       - name: Checking out code
         uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          token: ${{ secrets.SUBMODULE_PAT }}
 
       - name: Download individual test files
         uses: actions/download-artifact@v4

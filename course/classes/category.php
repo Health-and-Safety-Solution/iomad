@@ -3279,16 +3279,16 @@ class core_course_category implements renderable, cacheable_object, IteratorAggr
             return $parentcat;
         }
 
-        // IOMAD
+        // IOMAD - a company-scoped user must have company_view_all to traverse
+        // into subcategories. Users not assigned to any company (system/admin/CLI
+        // /unit tests) are not company-scoped, so fall through to the standard
+        // capability-based search below rather than being denied outright.
         $systemcontext = \context_system::instance();
-        $companyid = iomad::get_my_companyid($systemcontext, false);
-        if (!empty($companyid)) {
+        if ($companyid = iomad::get_my_companyid($systemcontext, false)) {
             $companycontext = \core\context\company::instance($companyid);
-        } else {
-            $companycontext = $systemcontext;
-        }
-        if (!iomad::has_capability('block/iomad_company_admin:company_view_all', $companycontext)) {
-            return null;
+            if (!iomad::has_capability('block/iomad_company_admin:company_view_all', $companycontext)) {
+                return null;
+            }
         }
 
         // Get all course category contexts that are children of the parent category's context where

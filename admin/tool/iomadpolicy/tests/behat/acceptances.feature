@@ -1,5 +1,5 @@
 @tool @tool_iomadpolicy
-Feature: Viewing acceptances reports and accepting on behalf of other users
+Feature: Viewing acceptances reports and accepting on behalf of other users [iomadpolicy]
   In order to manage user acceptances
   As a manager
   I need to be able to view acceptances and accept on behalf of other users

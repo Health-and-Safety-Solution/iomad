@@ -1,29 +1,33 @@
-#page-local-report_completion_monthly-index .col-md-9, #page-local-report_completion_monthly-index .chart-area {
-    clear:both;
+#page-local-report_completion_monthly-index .col-md-9,
+#page-local-report_completion_monthly-index .chart-area {
+    clear: both;
 }
 
-#page-local-report_completion_monthly-index .coursessearchform, #page-local-report_completion_monthly-index .iomaddatesearchform {
-    float:left;
+#page-local-report_completion_monthly-index .coursessearchform,
+#page-local-report_completion_monthly-index .iomaddatesearchform {
+    float: left;
 }
 
-/*#page-local-report_completion_monthly-index #iomad_course_selector select , #page-local-report_completion_monthly-index .felement {
+/*#page-local-report_completion_monthly-index #iomad_course_selector select ,
+#page-local-report_completion_monthly-index .felement {
     background-color: #ddd;
 }
 */
-#page-local-report_completion_monthly-index #iomad_course_selector, #page-local-report_completion_monthly-index .femptylabel {
+#page-local-report_completion_monthly-index #iomad_course_selector,
+#page-local-report_completion_monthly-index .femptylabel {
     padding-top: 5px;
     padding-bottom: 5px;
     background-color: #fff;
 }
 
-#page-local-report_completion_monthly-index .femptylabel .felement{
+#page-local-report_completion_monthly-index .femptylabel .felement {
     background-color: #fff;
 }
 
 .iomadcoursesearchform .icons-collapse-expand.collapsed .expanded-icon,
 .iomadcoursesearchform .icons-collapse-expand.collapsed .collapsed-icon,
 .iomaddatesearchform  .icons-collapse-expand.collapsed .expanded-icon,
-.iomaddatesearchform .icons-collapse-expand.collapsed .collapsed-icon{
+.iomaddatesearchform .icons-collapse-expand.collapsed .collapsed-icon {
     font-size: small;
 }
 
@@ -36,7 +40,7 @@
 .iomadcoursesearchform .mform .form-inline .custom-select,
 .iomaddatesearchform .mform .form-inline .form-control,
 .iomaddatesearchform .mform .form-inline .custom-select {
-    max-width:75%;
+    max-width: 75%;
 }
 
 .iomadcoursesearchform,
@@ -67,5 +71,5 @@
 .iomaddatesearchform .mform .form-inline .custom-select,
 .iomadusersearchform .mform .form-inline .form-control,
 .iomadusersearchform .mform .form-inline .custom-select {
-    max-width:75%;
+    max-width: 75%;
 }

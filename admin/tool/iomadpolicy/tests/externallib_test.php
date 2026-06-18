@@ -18,12 +18,12 @@ namespace tool_iomadpolicy;
 
 use externallib_advanced_testcase;
 use tool_mobile\external as external_mobile;
+use core_external\external_api;
 
 defined('MOODLE_INTERNAL') || die();
 
 global $CFG;
 
-require_once($CFG->libdir . '/externallib.php');
 require_once($CFG->dirroot . '/webservice/tests/helpers.php');
 require_once($CFG->dirroot . '/user/externallib.php');
 
@@ -35,6 +35,19 @@ require_once($CFG->dirroot . '/user/externallib.php');
  * @license http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 class externallib_test extends externallib_advanced_testcase {
+
+    /** @var \tool_iomadpolicy\iomadpolicy_version First test policy version. */
+    protected $iomadpolicy1;
+    /** @var \tool_iomadpolicy\iomadpolicy_version Second test policy version. */
+    protected $iomadpolicy2;
+    /** @var \tool_iomadpolicy\iomadpolicy_version Third test policy version. */
+    protected $iomadpolicy3;
+    /** @var \stdClass Child test user. */
+    protected $child;
+    /** @var \stdClass Parent test user. */
+    protected $parent;
+    /** @var \stdClass Adult test user. */
+    protected $adult;
 
     /**
      * Setup function- we will create some iomadpolicy docs.
@@ -87,21 +100,21 @@ class externallib_test extends externallib_advanced_testcase {
 
         // View current iomadpolicy version.
         $result = external::get_iomadpolicy_version($this->iomadpolicy2->get('id'));
-        $result = \external_api::clean_returnvalue(external::get_iomadpolicy_version_returns(), $result);
+        $result = external_api::clean_returnvalue(external::get_iomadpolicy_version_returns(), $result);
         $this->assertCount(1, $result['result']);
         $this->assertEquals($this->iomadpolicy1->get('name'), $result['result']['iomadpolicy']['name']);
         $this->assertEquals($this->iomadpolicy1->get('content'), $result['result']['iomadpolicy']['content']);
 
         // View draft iomadpolicy version.
         $result = external::get_iomadpolicy_version($this->iomadpolicy3->get('id'));
-        $result = \external_api::clean_returnvalue(external::get_iomadpolicy_version_returns(), $result);
+        $result = external_api::clean_returnvalue(external::get_iomadpolicy_version_returns(), $result);
         $this->assertCount(0, $result['result']);
         $this->assertCount(1, $result['warnings']);
         $this->assertEquals(array_pop($result['warnings'])['warningcode'], 'errorusercantviewiomadpolicyversion');
 
         // Add test for non existing versionid.
         $result = external::get_iomadpolicy_version(999);
-        $result = \external_api::clean_returnvalue(external::get_iomadpolicy_version_returns(), $result);
+        $result = external_api::clean_returnvalue(external::get_iomadpolicy_version_returns(), $result);
         $this->assertCount(0, $result['result']);
         $this->assertCount(1, $result['warnings']);
         $this->assertEquals(array_pop($result['warnings'])['warningcode'], 'erroriomadpolicyversionnotfound');
@@ -109,7 +122,7 @@ class externallib_test extends externallib_advanced_testcase {
         // View previous non-accepted version in behalf of a child.
         $this->setUser($this->parent);
         $result = external::get_iomadpolicy_version($this->iomadpolicy1->get('id'), $this->child->id);
-        $result = \external_api::clean_returnvalue(external::get_iomadpolicy_version_returns(), $result);
+        $result = external_api::clean_returnvalue(external::get_iomadpolicy_version_returns(), $result);
         $this->assertCount(0, $result['result']);
         $this->assertCount(1, $result['warnings']);
         $this->assertEquals(array_pop($result['warnings'])['warningcode'], 'errorusercantviewiomadpolicyversion');
@@ -117,7 +130,7 @@ class externallib_test extends externallib_advanced_testcase {
         // Let the parent accept the iomadpolicy on behalf of her child and view it again.
         api::accept_policies($this->iomadpolicy1->get('id'), $this->child->id);
         $result = external::get_iomadpolicy_version($this->iomadpolicy1->get('id'), $this->child->id);
-        $result = \external_api::clean_returnvalue(external::get_iomadpolicy_version_returns(), $result);
+        $result = external_api::clean_returnvalue(external::get_iomadpolicy_version_returns(), $result);
         $this->assertCount(1, $result['result']);
         $this->assertEquals($this->iomadpolicy1->get('name'), $result['result']['iomadpolicy']['name']);
         $this->assertEquals($this->iomadpolicy1->get('content'), $result['result']['iomadpolicy']['content']);
@@ -125,7 +138,7 @@ class externallib_test extends externallib_advanced_testcase {
         // Only parent is able to view the child iomadpolicy version accepted by her child.
         $this->setUser($this->adult);
         $result = external::get_iomadpolicy_version($this->iomadpolicy1->get('id'), $this->child->id);
-        $result = \external_api::clean_returnvalue(external::get_iomadpolicy_version_returns(), $result);
+        $result = external_api::clean_returnvalue(external::get_iomadpolicy_version_returns(), $result);
         $this->assertCount(0, $result['result']);
         $this->assertCount(1, $result['warnings']);
         $this->assertEquals(array_pop($result['warnings'])['warningcode'], 'errorusercantviewiomadpolicyversion');
@@ -141,12 +154,12 @@ class externallib_test extends externallib_advanced_testcase {
 
         // Set the handler for the site iomadpolicy, make sure it substitutes link to the siteiomadpolicy.
         $CFG->sitepolicyhandler = 'tool_iomadpolicy';
-        $siteiomadpolicymanager = new \core_privacy\local\siteiomadpolicy\manager();
+        $siteiomadpolicymanager = new \core_privacy\local\sitepolicy\manager();
         $result = external_mobile::get_config();
-        $result = \external_api::clean_returnvalue(external_mobile::get_config_returns(), $result);
+        $result = external_api::clean_returnvalue(external_mobile::get_config_returns(), $result);
         $toolsiteiomadpolicy = $siteiomadpolicymanager->get_embed_url();
         foreach (array_values($result['settings']) as $r) {
-            if ($r['name'] == 'siteiomadpolicy') {
+            if ($r['name'] == 'sitepolicy') {
                 $configsiteiomadpolicy = $r['value'];
             }
         }
@@ -166,17 +179,17 @@ class externallib_test extends externallib_advanced_testcase {
         // Set mock site iomadpolicy handler. See function tool_phpunit_site_iomadpolicy_handler() below.
         $CFG->sitepolicyhandler = 'tool_iomadpolicy';
         $this->assertEquals(0, $USER->policyagreed);
-        $siteiomadpolicymanager = new \core_privacy\local\siteiomadpolicy\manager();
+        $siteiomadpolicymanager = new \core_privacy\local\sitepolicy\manager();
 
         // Make sure user can not login.
         $toolconsentpage = $siteiomadpolicymanager->get_redirect_url();
         $this->expectException(\moodle_exception::class);
-        $this->expectExceptionMessage(get_string('siteiomadpolicynotagreed', 'error', $toolconsentpage->out()));
+        $this->expectExceptionMessage(get_string('sitepolicynotagreed', 'error', $toolconsentpage->out()));
         \core_user_external::validate_context(\context_system::instance());
 
         // Call WS to agree to the site iomadpolicy. It will call tool_iomadpolicy handler.
         $result = \core_user_external::agree_site_iomadpolicy();
-        $result = \external_api::clean_returnvalue(\core_user_external::agree_site_iomadpolicy_returns(), $result);
+        $result = external_api::clean_returnvalue(\core_user_external::agree_site_iomadpolicy_returns(), $result);
         $this->assertTrue($result['status']);
         $this->assertCount(0, $result['warnings']);
         $this->assertEquals(1, $USER->policyagreed);
@@ -184,7 +197,7 @@ class externallib_test extends externallib_advanced_testcase {
 
         // Try again, we should get a warning.
         $result = \core_user_external::agree_site_iomadpolicy();
-        $result = \external_api::clean_returnvalue(\core_user_external::agree_site_iomadpolicy_returns(), $result);
+        $result = external_api::clean_returnvalue(\core_user_external::agree_site_iomadpolicy_returns(), $result);
         $this->assertFalse($result['status']);
         $this->assertCount(1, $result['warnings']);
         $this->assertEquals('alreadyagreed', $result['warnings'][0]['warningcode']);
@@ -199,7 +212,7 @@ class externallib_test extends externallib_advanced_testcase {
         $this->resetAfterTest(true);
         $CFG->sitepolicyhandler = 'tool_iomadpolicy';
         $syscontext = \context_system::instance();
-        $siteiomadpolicymanager = new \core_privacy\local\siteiomadpolicy\manager();
+        $siteiomadpolicymanager = new \core_privacy\local\sitepolicy\manager();
 
         $adult = $this->getDataGenerator()->create_user();
 
@@ -211,14 +224,14 @@ class externallib_test extends externallib_advanced_testcase {
         // Default user can accept policies.
         $this->setUser($adult);
         $result = external_mobile::get_config();
-        $result = \external_api::clean_returnvalue(external_mobile::get_config_returns(), $result);
+        $result = external_api::clean_returnvalue(external_mobile::get_config_returns(), $result);
         $toolsiteiomadpolicy = $siteiomadpolicymanager->accept();
         $this->assertTrue($toolsiteiomadpolicy);
 
         // Child user can not accept policies.
         $this->setUser($child);
         $result = external_mobile::get_config();
-        $result = \external_api::clean_returnvalue(external_mobile::get_config_returns(), $result);
+        $result = external_api::clean_returnvalue(external_mobile::get_config_returns(), $result);
         $this->expectException(\required_capability_exception::class);
         $siteiomadpolicymanager->accept();
     }

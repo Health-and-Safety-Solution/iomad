@@ -212,3 +212,13 @@ $string['companyscore'] = 'with an overall score of {$a}';
 $string['companydate'] = 'on {$a}';
 $string['companydatecap'] = 'On {$a}';
 
+$string['privacy:metadata:iomadcertificate_issues'] = 'Information about the issued iomadcertificates for users.';
+$string['privacy:metadata:iomadcertificate_issues:userid'] = 'The ID of the user who was issued the iomadcertificate.';
+$string['privacy:metadata:iomadcertificate_issues:iomadcertificateid'] = 'The ID of the iomadcertificate activity.';
+$string['privacy:metadata:iomadcertificate_issues:code'] = 'The unique code generated for the issued iomadcertificate.';
+$string['privacy:metadata:iomadcertificate_issues:timecreated'] = 'The time the iomadcertificate was issued.';
+$string['privacy:metadata:iomadcertificate_issues'] = 'Information about the issued iomadcertificates for users.';
+$string['privacy:metadata:iomadcertificate_issues:userid'] = 'The ID of the user who was issued the iomadcertificate.';
+$string['privacy:metadata:iomadcertificate_issues:iomadcertificateid'] = 'The ID of the iomadcertificate activity.';
+$string['privacy:metadata:iomadcertificate_issues:code'] = 'The unique code generated for the issued iomadcertificate.';
+$string['privacy:metadata:iomadcertificate_issues:timecreated'] = 'The time the iomadcertificate was issued.';

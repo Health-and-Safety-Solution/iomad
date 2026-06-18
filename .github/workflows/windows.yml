@@ -22,6 +22,9 @@ jobs:
 
       - name: Checking out code
         uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          token: ${{ secrets.SUBMODULE_PAT }}
 
       - name: Configuring node & npm
         uses: actions/setup-node@v4
@@ -118,6 +121,9 @@ jobs:
 
       - name: Checking out code from ${{ env.GITHUB_REF_SLUG }}
         uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          token: ${{ secrets.SUBMODULE_PAT }}
 
       # Needs to be done after php is available, git configured and Moodle checkout has happened.
       - name: Setting up moodle-exttests service

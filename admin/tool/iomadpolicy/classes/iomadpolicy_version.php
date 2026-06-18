@@ -168,6 +168,7 @@ class iomadpolicy_version extends persistent {
             ],
             'companyid' => [
                 'type' => PARAM_INT,
+                'default' => 0,
             ],
         ];
     }

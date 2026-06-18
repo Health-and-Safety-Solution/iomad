@@ -1,5 +1,5 @@
 @auth @auth_iomadsaml2 @javascript
-Feature: IOMAD SAML2 settings
+Feature: IOMAD SAML2 settings [iomadsaml2]
   In order to configure the plugin
   As an administrator
   I need to change the settings in Moodle

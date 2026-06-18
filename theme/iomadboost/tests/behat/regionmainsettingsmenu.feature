@@ -1,5 +1,5 @@
 @javascript @theme_iomadboost
-Feature: Region main settings menu
+Feature: Region main settings menu [iomadboost]
   To navigate in iomadboost theme I need to use the region main settings menu
 
   Background:

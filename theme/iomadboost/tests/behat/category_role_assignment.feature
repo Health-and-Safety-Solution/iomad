@@ -1,5 +1,5 @@
 @core @core_course @theme_iomadboost
-Feature: Role assignments can be made at the category level
+Feature: Role assignments can be made at the category level [iomadboost]
   In order to grant a user different capabilities
   As a user
   I can assign roles in categories

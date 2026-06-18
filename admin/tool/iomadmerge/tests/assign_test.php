@@ -15,38 +15,104 @@
 // along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
 
 /**
- * Version information
+ * Assign grade merge tests.
  *
- * @package    tool
- * @subpackage iomadmerge
+ * @package    tool_iomadmerge
  * @copyright  Derick Turner
- * @author     Derick Turner
- * @basedon    admin tool merge by:
- * @author     Nicolas Dunand <Nicolas.Dunand@unil.ch>
- * @author     Mike Holzer
- * @author     Forrest Gaston
- * @author     Juan Pablo Torres Herrera
- * @author     Jordi Pujol-Ahulló, SREd, Universitat Rovira i Virgili
- * @author     John Hoopes <hoopes@wisc.edu>, University of Wisconsin - Madison
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
 defined('MOODLE_INTERNAL') || die();
 
 global $CFG;
-require_once($CFG->dirroot . '/mod/assign/tests/base_test.php');
+require_once($CFG->dirroot . '/mod/assign/locallib.php');
+require_once($CFG->dirroot . '/mod/assign/tests/fixtures/testable_assign.php');
 
 /**
- * Class assign_test
+ * Class tool_iomadmerge_assign_testcase
  */
-class tool_iomadmerge_assign_testcase extends mod_assign_base_testcase {
+class tool_iomadmerge_assign_testcase extends \advanced_testcase {
+
+    /** @var int */
+    const DEFAULT_STUDENT_COUNT = 3;
+    /** @var int */
+    const DEFAULT_TEACHER_COUNT = 2;
+    /** @var int */
+    const DEFAULT_EDITING_TEACHER_COUNT = 2;
+    /** @var int */
+    const GROUP_COUNT = 6;
+
+    /** @var \stdClass */
+    protected $course = null;
+    /** @var array */
+    protected $teachers = null;
+    /** @var array */
+    protected $editingteachers = null;
+    /** @var array */
+    protected $students = null;
+    /** @var array */
+    protected $groups = null;
+
     /**
-     *
+     * Create a course with teachers, editing teachers and students enrolled.
      */
     public function setUp(): void {
-        global $CFG;
+        global $CFG, $DB;
         require_once("$CFG->dirroot/admin/tool/iomadmerge/lib/iomadmergetool.php");
-        parent::setUp();
+
+        $this->resetAfterTest(true);
+
+        $this->course = $this->getDataGenerator()->create_course(array('enablecompletion' => 1));
+
+        $this->teachers = array();
+        for ($i = 0; $i < self::DEFAULT_TEACHER_COUNT; $i++) {
+            array_push($this->teachers, $this->getDataGenerator()->create_user());
+        }
+        $this->editingteachers = array();
+        for ($i = 0; $i < self::DEFAULT_EDITING_TEACHER_COUNT; $i++) {
+            array_push($this->editingteachers, $this->getDataGenerator()->create_user());
+        }
+        $this->students = array();
+        for ($i = 0; $i < self::DEFAULT_STUDENT_COUNT; $i++) {
+            array_push($this->students, $this->getDataGenerator()->create_user());
+        }
+        $this->groups = array();
+        for ($i = 0; $i < self::GROUP_COUNT; $i++) {
+            array_push($this->groups, $this->getDataGenerator()->create_group(array('courseid' => $this->course->id)));
+        }
+
+        $teacherrole = $DB->get_record('role', array('shortname' => 'teacher'));
+        foreach ($this->teachers as $i => $teacher) {
+            $this->getDataGenerator()->enrol_user($teacher->id, $this->course->id, $teacherrole->id);
+            groups_add_member($this->groups[$i % self::GROUP_COUNT], $teacher);
+        }
+        $editingteacherrole = $DB->get_record('role', array('shortname' => 'editingteacher'));
+        foreach ($this->editingteachers as $i => $editingteacher) {
+            $this->getDataGenerator()->enrol_user($editingteacher->id, $this->course->id, $editingteacherrole->id);
+            groups_add_member($this->groups[$i % self::GROUP_COUNT], $editingteacher);
+        }
+        $studentrole = $DB->get_record('role', array('shortname' => 'student'));
+        foreach ($this->students as $i => $student) {
+            $this->getDataGenerator()->enrol_user($student->id, $this->course->id, $studentrole->id);
+            groups_add_member($this->groups[$i % self::GROUP_COUNT], $student);
+        }
+    }
+
+    /**
+     * Convenience function to create a testable instance of an assignment.
+     *
+     * @param array $params parameters to pass to the generator.
+     * @return \mod_assign_testable_assign testable wrapper around the assign class.
+     */
+    protected function create_instance($params = array()) {
+        $generator = $this->getDataGenerator()->get_plugin_generator('mod_assign');
+        if (!isset($params['course'])) {
+            $params['course'] = $this->course->id;
+        }
+        $instance = $generator->create_instance($params);
+        $cm = get_coursemodule_from_instance('assign', $instance->id);
+        $context = \context_module::instance($cm->id);
+        return new \mod_assign_testable_assign($context, $cm, $this->course);
     }
 
     /**
@@ -89,10 +155,10 @@ class tool_iomadmerge_assign_testcase extends mod_assign_base_testcase {
 
     /**
      * Utility method to get the grade for a user.
-     * @param $user
-     * @param $assign
-     * @param $course
-     * @return testable_assign
+     * @param \stdClass $user
+     * @param \mod_assign_testable_assign $assign
+     * @param \stdClass $course
+     * @return string
      */
     private function get_user_assign_grade($user, $assign, $course) {
         $gradebookgrades = \grade_get_grades($course->id, 'mod', 'assign', $assign->get_instance()->id, $user->id);

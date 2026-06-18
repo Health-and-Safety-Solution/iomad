@@ -41,3 +41,4 @@ $string['templatelearningpathnotsyncedwhileduedateispassed'] = 'Learning paths w
 $string['assignlearningpaths'] = 'Assign learning paths';
 $string['syncplanslearningpaths'] = 'Sync plans from learning plan template learning paths';
 $string['addlearningpathstosync'] = 'Add learning paths to sync';
+$string['privacy:metadata'] = 'The Iomad Learning Path block does not store any personal data; it only displays learning paths stored elsewhere.';

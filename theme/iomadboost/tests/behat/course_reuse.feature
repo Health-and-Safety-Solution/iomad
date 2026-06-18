@@ -1,5 +1,5 @@
 @javascript @theme_iomadboost
-Feature: Course reuse navigation
+Feature: Course reuse navigation [iomadboost]
   As a teacher
   I can navigate to course reuse pages
 

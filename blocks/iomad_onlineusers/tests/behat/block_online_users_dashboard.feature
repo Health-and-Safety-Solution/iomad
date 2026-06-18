@@ -1,5 +1,5 @@
 @block @block_iomad_onlineusers
-Feature: The online users block allow you to see who is currently online on dashboard
+Feature: The online users block allow you to see who is currently online on dashboard [iomad_onlineusers]
   There should be some commonality for the users to show up
   In order to use the online users block on the dashboard
   As a user

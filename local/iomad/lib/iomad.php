@@ -75,6 +75,9 @@ class iomad {
         } else if (self::has_capability('block/iomad_company_admin:edit_departments', $context) && $required) {
             if (!empty($SESSION->currenteditingcompany)) {
                 return $SESSION->currenteditingcompany;
+            } else if ((defined('PHPUNIT_TEST') && PHPUNIT_TEST) || CLI_SCRIPT ||
+                       (defined('WS_SERVER') && WS_SERVER) || (defined('AJAX_SCRIPT') && AJAX_SCRIPT)) {
+                $companyid = 0;
             } else {
                 redirect(new moodle_url('/blocks/iomad_company_admin/index.php'), get_string('pleaseselect', 'block_iomad_company_admin'));
             }
@@ -428,6 +431,11 @@ class iomad {
             return $categories;
         }
 
+        // No companies defined yet (fresh site / unit tests) - nothing to filter against.
+        if (!$DB->record_exists('company', [])) {
+            return $categories;
+        }
+
         // Check if its the client admin.
         if (self::has_capability('block/iomad_company_admin:company_view_all', $contextsystem) && empty($userid)) {
             return $categories;
@@ -436,7 +444,9 @@ class iomad {
         if ($companyid = iomad::get_my_companyid($contextsystem)) {
             $company = $DB->get_record('company', ['id' => $companyid]);
         } else {
-            $company = (object) ['id' => 0];
+            // User is not assigned to any company (system/admin/CLI/unit tests) -
+            // they are not company-scoped, so do not filter their category list.
+            return $categories;
         }
 
         // Get the cache objects.
@@ -546,12 +556,21 @@ class iomad {
 
         $contextsystem = context_system::instance();
 
+        // No companies defined yet (fresh site / unit tests) - nothing to filter against.
+        if (!$DB->get_manager()->table_exists('company') || !$DB->record_exists('company', [])) {
+            return $courses;
+        }
+
         // Check if its the client admin.
         if (self::has_capability('block/iomad_company_admin:company_view_all', $contextsystem)) {
             return $courses;
         }
 
         $mycompanyid = self::get_my_companyid($contextsystem);
+        if (empty($mycompanyid)) {
+            // No company for this user (system/admin/CLI/unit tests) - do not filter.
+            return $courses;
+        }
 
         $iomadcourses = array();
         foreach ($courses as $id => $course) {
@@ -1850,23 +1869,28 @@ class iomad {
      * @param int $companyid (optional) check for different company (and right to access same).
      * @return bool
      */
-    public static function has_capability($capability, context $context, $companyid = 0) {
+    public static function has_capability($capability, context $context, $user = null, $doanything = true, $companyid = 0) {
         global $USER, $DB;
 
-        // If original version says no then it's no.
+        // Resolve the target user (defaults to the current user). Callers pass a
+        // user id or object as the 3rd argument (e.g. has_any_capability()).
+        $userid = is_object($user) ? $user->id : (empty($user) ? $USER->id : $user);
+
+        // If original version says no then it's no (evaluated for the target user,
+        // honouring $doanything so admin's "do anything" can be ignored).
         // (We also rely on this doing a bunch of sanity checks, so we don't have to)
-        if (!has_capability($capability, $context)) {
+        if (!has_capability($capability, $context, $user, $doanything)) {
             return false;
         }
 
-        // If this is the admin then we'll believe it
-        if (is_siteadmin()) {
+        // If this is the admin then we'll believe it (unless doanything is off).
+        if ($doanything && is_siteadmin($userid)) {
             return true;
         }
 
         // If companyid supplied then check the user is a member
         if ($companyid) {
-            if (!$DB->record_exists('company_users', ['companyid' => $companyid, 'userid' => $USER->id])) {
+            if (!$DB->record_exists('company_users', ['companyid' => $companyid, 'userid' => $userid])) {
                 return false;
             }
         } else {

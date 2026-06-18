@@ -278,6 +278,7 @@ class core_backup_external extends external_api {
                             'backupid' => new external_value(PARAM_ALPHANUM, 'Backup id'),
                             'restoreid' => new external_value(PARAM_ALPHANUM, 'Restore id'),
                             'operation' => new external_value(PARAM_ALPHANUM, 'Operation type'),
+                            'companyid' => new external_value(PARAM_INT, 'IOMAD company id', VALUE_OPTIONAL),
                         ), 'Copy data'
                     ), 'Copy data'
                 ),

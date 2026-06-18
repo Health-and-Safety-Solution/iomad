@@ -34,9 +34,12 @@ $baseurl = optional_param('baseurl', $CFG->wwwroot, PARAM_URL);
 
 if (!empty($SESSION->iomadsaml2idp) && array_key_exists($SESSION->iomadsaml2idp, $iomadsaml2auth->metadataentities)) {
     $idpentityid = $iomadsaml2auth->metadataentities[$SESSION->iomadsaml2idp]->entityid;
-} else {
+} else if (!empty($iomadsaml2auth->metadataentities)) {
     // Case for specifying no $SESSION IdP, select the first configured IdP as the default.
     $idpentityid = reset($iomadsaml2auth->metadataentities)->entityid;
+} else {
+    // No configured IdP metadata (e.g. under PHPUnit); avoid reading entityid on false.
+    $idpentityid = '';
 }
 
 $defaultspentityid = "$baseurl/auth/iomadsaml2/sp/metadata.php";

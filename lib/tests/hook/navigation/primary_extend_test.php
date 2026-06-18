@@ -99,7 +99,8 @@ final class primary_extend_test extends \advanced_testcase {
         $this->setAdminUser();
         $primarynav = new \core\navigation\views\primary($PAGE);
         $primarynav->initialise();
-        $this->assertSame(['home', 'myhome', 'mycourses'], $primarynav->get_children_key_list(),
+        // IOMAD adds 'ioaddashboardnode' to the primary navigation.
+        $this->assertSame(['home', 'myhome', 'mycourses', 'ioaddashboardnode'], $primarynav->get_children_key_list(),
             'Unsupported primary menu modification detected, use new primary_extend hook instead.');
     }
 

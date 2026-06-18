@@ -1,5 +1,5 @@
 @javascript @theme_iomadbootstrap
-Feature: Page administration menu
+Feature: Page administration menu [iomadbootstrap]
   To navigate in iomadbootstrap theme I need to use the page administration menu
 
   Background:

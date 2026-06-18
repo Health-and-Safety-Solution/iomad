@@ -296,12 +296,17 @@ class course_competency extends persistent {
 
         // IOMAD.  Set up the user's companyid.
         if (!\iomad::has_capability('block/iomad_company_admin:company_view_all', \context_system::instance())) {
-            $companyid = \iomad::get_my_companyid(\context_system::instance());
-            $companyframeworks = \iomad::get_company_frameworkids($companyid);
-            if (!empty($companyframeworks)) {
-                $sql .= " AND comp.competencyframeworkid IN (" . implode(',', array_keys($companyframeworks)) . ")";
-            } else {
-                $sql .= " AND 1 = 2";
+            // Only restrict to the company's frameworks for a company-scoped user.
+            // Users with no company (system/admin/CLI/unit tests) are not
+            // company-scoped, so do not filter - otherwise "AND 1 = 2" wipes the
+            // result and falsely reports the competency is not in the course.
+            if ($companyid = \iomad::get_my_companyid(\context_system::instance())) {
+                $companyframeworks = \iomad::get_company_frameworkids($companyid);
+                if (!empty($companyframeworks)) {
+                    $sql .= " AND comp.competencyframeworkid IN (" . implode(',', array_keys($companyframeworks)) . ")";
+                } else {
+                    $sql .= " AND 1 = 2";
+                }
             }
         }
 
@@ -336,12 +341,17 @@ class course_competency extends persistent {
 
         // IOMAD.  Set up the user's companyid.
         if (!\iomad::has_capability('block/iomad_company_admin:company_view_all', \context_system::instance())) {
-            $companyid = \iomad::get_my_companyid(\context_system::instance());
-            $companyframeworks = \iomad::get_company_frameworkids($companyid);
-            if (!empty($companyframeworks)) {
-                $sql .= " AND comp.competencyframeworkid IN (" . implode(',', array_keys($companyframeworks)) . ")";
-            } else {
-                $sql .= " AND 1 = 2";
+            // Only restrict to the company's frameworks for a company-scoped user.
+            // Users with no company (system/admin/CLI/unit tests) are not
+            // company-scoped, so do not filter - otherwise "AND 1 = 2" wipes the
+            // result and falsely reports the competency is not in the course.
+            if ($companyid = \iomad::get_my_companyid(\context_system::instance())) {
+                $companyframeworks = \iomad::get_company_frameworkids($companyid);
+                if (!empty($companyframeworks)) {
+                    $sql .= " AND comp.competencyframeworkid IN (" . implode(',', array_keys($companyframeworks)) . ")";
+                } else {
+                    $sql .= " AND 1 = 2";
+                }
             }
         }
 
@@ -411,12 +421,17 @@ class course_competency extends persistent {
 
         // IOMAD.  Set up the user's companyid.
         if (!\iomad::has_capability('block/iomad_company_admin:company_view_all', \context_system::instance())) {
-            $companyid = \iomad::get_my_companyid(\context_system::instance());
-            $companyframeworks = \iomad::get_company_frameworkids($companyid);
-            if (!empty($companyframeworks)) {
-                $sql .= " AND comp.competencyframeworkid IN (" . implode(',', array_keys($companyframeworks)) . ")";
-            } else {
-                $sql .= " AND 1 = 2";
+            // Only restrict to the company's frameworks for a company-scoped user.
+            // Users with no company (system/admin/CLI/unit tests) are not
+            // company-scoped, so do not filter - otherwise "AND 1 = 2" wipes the
+            // result and falsely reports the competency is not in the course.
+            if ($companyid = \iomad::get_my_companyid(\context_system::instance())) {
+                $companyframeworks = \iomad::get_company_frameworkids($companyid);
+                if (!empty($companyframeworks)) {
+                    $sql .= " AND comp.competencyframeworkid IN (" . implode(',', array_keys($companyframeworks)) . ")";
+                } else {
+                    $sql .= " AND 1 = 2";
+                }
             }
         }
 

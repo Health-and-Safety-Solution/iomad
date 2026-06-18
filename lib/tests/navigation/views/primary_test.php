@@ -61,8 +61,9 @@ final class primary_test extends \advanced_testcase {
      */
     public static function setting_initialise_provider(): array {
         return [
+            // IOMAD adds 'ioaddashboardnode' to the admin's primary navigation.
             'Testing as a guest user' => ['guest', ['home']],
-            'Testing as an admin' => ['admin', ['home', 'myhome', 'mycourses', 'siteadminnode']],
+            'Testing as an admin' => ['admin', ['home', 'myhome', 'mycourses', 'siteadminnode', 'ioaddashboardnode']],
             'Testing as a regular user' => ['user', ['home', 'myhome', 'mycourses']]
         ];
     }

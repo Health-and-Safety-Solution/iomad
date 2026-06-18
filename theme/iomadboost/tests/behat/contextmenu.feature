@@ -1,5 +1,5 @@
 @javascript @theme_iomadboost
-Feature: Context settings menu
+Feature: Context settings menu [iomadboost]
   To navigate in iomadboost theme I need to use the context settings menu
 
   Background:

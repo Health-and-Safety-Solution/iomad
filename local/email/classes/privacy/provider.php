@@ -52,7 +52,7 @@ class provider implements
      */
     public static function get_metadata(collection $collection) : collection {
         $collection->add_database_table(
-            'local_email',
+            'email',
             [
                 'id' => 'privacy:metadata:local_email:id',
                 'templatename' => 'privacy:metadata:local_email:templatename',

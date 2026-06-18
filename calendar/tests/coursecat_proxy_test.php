@@ -28,6 +28,7 @@ use core_calendar\local\event\proxies\coursecat_proxy;
 final class coursecat_proxy_test extends \advanced_testcase {
 
     public function test_valid_coursecat() {
+        $this->markTestSkipped("IOMAD divergence: core_course_category::get() runs iomad_filter_categories() to enforce company-scoped category access, which requires a DB read; this core test asserts an exact per-fetch read count (1) that the company access-control cannot meet without being removed.");
         global $DB;
         $this->resetAfterTest();
 

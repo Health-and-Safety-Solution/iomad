@@ -1,5 +1,5 @@
 @auth @auth_iomadsaml2 @javascript
-Feature: Self tests
+Feature: Self tests [iomadsaml2]
   In order to test for known configuration issues
   As any user (not login required)
   I should be able to run self tests

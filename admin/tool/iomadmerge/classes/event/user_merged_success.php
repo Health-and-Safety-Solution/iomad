@@ -50,9 +50,6 @@ class user_merged_success extends user_merged {
         return get_string('eventusermergedsuccess', 'tool_iomadmerge');
     }
 
-    public static function get_legacy_eventname() {
-        return 'merging_success';
-    }
 
     public function get_description() {
         return "The user {$this->userid} merged all user-related data

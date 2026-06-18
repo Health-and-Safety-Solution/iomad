@@ -1,5 +1,5 @@
 @auth @auth_iomadsaml2 @javascript
-Feature: Automatically log in
+Feature: Automatically log in [iomadsaml2]
   In order to have correct Moodle access on pages that allow public access
   As a user
   I should be automatically logged in if I am logged into the IdP

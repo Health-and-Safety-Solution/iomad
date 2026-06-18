@@ -1,16 +1,19 @@
 #page-local-report_users-index .col-md-9 {
-    clear:both;
+    clear: both;
 }
 
-#page-local-report_users-index #iomad_course_selector, #page-local-report_users-index #iomad_license_selector {
-    float:left;
+#page-local-report_users-index #iomad_course_selector,
+#page-local-report_users-index #iomad_license_selector {
+    float: left;
 }
 
-#page-local-report_users-index #iomad_course_selector select, #page-local-report_users-index #iomad_license_selector select {
+#page-local-report_users-index #iomad_course_selector select,
+#page-local-report_users-index #iomad_license_selector select {
     background-color: #ddd;
 }
 
-#page-local-report_users-index #iomad_course_selector, #page-local-report_users-index #iomad_license_selector {
+#page-local-report_users-index #iomad_course_selector,
+#page-local-report_users-index #iomad_license_selector {
     padding-top: 7px;
     padding-bottom: 17px;
     padding-right: 5px;
@@ -18,7 +21,7 @@
 
 #page-local-report_users-userdisplay .form-inline label,
 #page-local-report_users-index .form-inline label {
-    display: inline-block!important;
+    display: inline-block;
 }
 
 #page-local-report_users-userdisplay .tablecontainer,
@@ -32,7 +35,7 @@
 }
 
 #page-local-report_users-index .mform fieldset {
-    border-bottom: 0px;
+    border-bottom: 0;
 }
 
 .progress {
@@ -71,5 +74,5 @@
 .iomaddatesearchform .mform .form-inline .custom-select,
 .iomadusersearchform .mform .form-inline .form-control,
 .iomadusersearchform .mform .form-inline .custom-select {
-    max-width:75%;
+    max-width: 75%;
 }

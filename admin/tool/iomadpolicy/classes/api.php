@@ -444,7 +444,7 @@ class api {
 
         $form->iomadpolicyid = $DB->insert_record('tool_iomadpolicy', (object) [
             'sortorder' => 999,
-            'companyid' => $form->companyid,
+            'companyid' => $form->companyid ?? 0,
         ]);
 
         static::distribute_iomadpolicy_document_sortorder();
@@ -470,7 +470,7 @@ class api {
         $form->id = $DB->insert_record('tool_iomadpolicy_versions', (new iomadpolicy_version(0, (object) [
             'timecreated' => time(),
             'iomadpolicyid' => $form->iomadpolicyid,
-            'companyid' => $form->companyid,
+            'companyid' => $form->companyid ?? 0,
         ]))->to_record());
 
         return static::form_iomadpolicydoc_update_overwrite($form);

@@ -89,3 +89,6 @@ $string['showprogress_desc'] = 'Show progress in learning plans';
 $string['shortname'] = 'Shortname';
 $string['toomanyprospectiveusers'] = 'Too many prospective users. Specify a filter';
 $string['untitledgroup'] = 'Untitled group';
+$string['privacy:metadata:iomad_learningpathuser'] = 'Information about which users are assigned to Iomad learning paths.';
+$string['privacy:metadata:iomad_learningpathuser:pathid'] = 'The ID of the learning path the user is assigned to.';
+$string['privacy:metadata:iomad_learningpathuser:userid'] = 'The ID of the user assigned to the learning path.';

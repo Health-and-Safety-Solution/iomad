@@ -24,6 +24,9 @@ jobs:
     steps:
       - name: Checking out code
         uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          token: ${{ secrets.SUBMODULE_PAT }}
 
       - name: Configuring node & npm
         uses: actions/setup-node@v4
@@ -60,11 +63,6 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          # MySQL builds always run with the lowest PHP supported version.
-          - os: ubuntu-22.04
-            php: 8.0
-            extensions:
-            db: mysqli
           # PostgreSQL builds always run with the highest PHP supported version.
           - os: ubuntu-22.04
             php: 8.2
@@ -106,6 +104,9 @@ jobs:
 
       - name: Checking out code from ${{ env.GITHUB_REF_SLUG }}
         uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          token: ${{ secrets.SUBMODULE_PAT }}
 
       - name: Setting up PHPUnit
         env:

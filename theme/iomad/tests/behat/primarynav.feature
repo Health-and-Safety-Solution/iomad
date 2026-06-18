@@ -1,5 +1,5 @@
 @javascript @theme_iomad
-Feature: Primary navigation
+Feature: Primary navigation [iomad]
   To navigate in iomad theme
   As a user
   I need to use the primary navigation

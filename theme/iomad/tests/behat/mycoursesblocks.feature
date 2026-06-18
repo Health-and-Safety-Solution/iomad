@@ -1,5 +1,5 @@
 @javascript @theme_iomad
-Feature: My courses page block layout in IOMAD theme
+Feature: My courses page block layout in IOMAD theme [iomad]
   In order to have a clear and consistent view on the my courses page
   As a student
   I need to see the blocks in the expected placement

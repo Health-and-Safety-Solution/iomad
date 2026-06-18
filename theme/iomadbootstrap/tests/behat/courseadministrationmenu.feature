@@ -1,5 +1,5 @@
 @javascript @theme_iomadbootstrap
-Feature: Course administration menu
+Feature: Course administration menu [iomadbootstrap]
   To navigate in iomadbootstrap theme teachers need to use the course administration menu
 
   Background:

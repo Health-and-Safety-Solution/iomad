@@ -1,5 +1,5 @@
 @auth @auth_iomadsaml2 @javascript
-Feature: Login
+Feature: Login [iomadsaml2]
   In order to allow single sign on
   As a IOMAD SAML2 user
   I need to be able to login into Moodle

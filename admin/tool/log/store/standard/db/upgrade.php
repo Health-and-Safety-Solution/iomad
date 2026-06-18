@@ -69,5 +69,15 @@ function xmldb_logstore_standard_upgrade($oldversion) {
     // Automatically generated Moodle v4.3.0 release upgrade line.
     // Put any upgrade step following this.
 
+    if ($oldversion < 2023100901) {
+        // IOMAD: add companyid column so per-company event data round-trips.
+        $table = new xmldb_table('logstore_standard_log');
+        $field = new xmldb_field('companyid', XMLDB_TYPE_INTEGER, '10', null, null, null, null, 'realuserid');
+        if (!$dbman->field_exists($table, $field)) {
+            $dbman->add_field($table, $field);
+        }
+        upgrade_plugin_savepoint(true, 2023100901, 'logstore', 'standard');
+    }
+
     return true;
 }

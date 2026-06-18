@@ -875,12 +875,13 @@ class api {
 
         // IOMAD.  Set up the user's companyid if they aren't an adamin.
         if (!\iomad::has_capability('block/iomad_company_admin:company_view_all', $context)) {
-            $companyid = \iomad::get_my_companyid(context_system::instance());
-            $companyframeworks = \iomad::get_company_frameworkids($companyid);
-            if (!empty($companyframeworks)) {
-                $select .= " AND id IN (" . implode(',', array_keys($companyframeworks)) . ")";
-            } else {
-                $select .= " AND 1 = 2";
+            if ($companyid = \iomad::get_my_companyid(context_system::instance())) {
+                $companyframeworks = \iomad::get_company_frameworkids($companyid);
+                if (!empty($companyframeworks)) {
+                    $select .= " AND id IN (" . implode(',', array_keys($companyframeworks)) . ")";
+                } else {
+                    $select .= " AND 1 = 2";
+                }
             }
         }
 
@@ -2089,12 +2090,13 @@ class api {
 
         // IOMAD.  Set up the user's companyid.
         if (!\iomad::has_capability('block/iomad_company_admin:company_view_all', $context)) {
-            $companyid = \iomad::get_my_companyid(context_system::instance());
-            $companytemplates = \iomad::get_company_templateids($companyid);
-            if (!empty($companytemplates)) {
-                $select .= " AND id IN (" . implode(',', array_keys($companytemplates)) . ")";
-            } else {
-                $select .= " AND 1 = 2";
+            if ($companyid = \iomad::get_my_companyid(context_system::instance())) {
+                $companytemplates = \iomad::get_company_templateids($companyid);
+                if (!empty($companytemplates)) {
+                    $select .= " AND id IN (" . implode(',', array_keys($companytemplates)) . ")";
+                } else {
+                    $select .= " AND 1 = 2";
+                }
             }
         }
 

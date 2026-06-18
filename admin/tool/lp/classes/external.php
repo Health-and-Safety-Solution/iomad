@@ -883,14 +883,16 @@ class external extends external_api {
         $systemcontext = context_system::instance();
 
         // Set the companyid
-        if (\iomad::has_capability('block/iomad_company_admin:company_view_all', $systemcontext)) {
+        $companyid = \iomad::get_my_companyid($systemcontext);
+        if ($companyid <= 0 ||
+                \iomad::has_capability('block/iomad_company_admin:company_view_all', $systemcontext)) {
+            // No company context (system/admin/not logged in) or can view all: no restriction.
             $companysql = "";
             $companyusql = "";
         } else {
             $companysql = " AND 1=2";
             $companyusql = " AND 1=2";
         }
-        $companyid = \iomad::get_my_companyid($systemcontext);
         if ($companyid > 0) {
             $companycontext = \core\context\company::instance($companyid);
             $company = new \company($companyid);
