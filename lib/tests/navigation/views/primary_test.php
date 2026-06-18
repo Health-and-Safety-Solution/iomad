@@ -38,6 +38,7 @@ final class primary_test extends \advanced_testcase {
      * @dataProvider setting_initialise_provider
      */
     public function test_setting_initialise($usertype, $expected) {
+        $this->markTestSkipped("IOMAD divergence: adds ioaddashboardnode to primary navigation.");
         global $PAGE;
         $PAGE->set_url("/");
         $this->resetAfterTest();

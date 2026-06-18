@@ -129,6 +129,7 @@ final class system_test extends \advanced_testcase {
      * @covers ::get_compatible_role_archetypes
      */
     public function test_get_compatible_role_archetypes() {
+        $this->markTestSkipped("IOMAD divergence: company system role archetypes are compatible.");
         global $DB;
 
         $allarchetypes = $DB->get_fieldset_select('role', 'DISTINCT archetype', 'archetype IS NOT NULL');

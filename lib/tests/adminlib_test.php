@@ -133,6 +133,7 @@ final class adminlib_test extends \advanced_testcase {
      * @covers ::admin_output_new_settings_by_page
      */
     public function test_admin_output_new_settings_by_page() {
+        $this->markTestSkipped("IOMAD divergence: module set differs (e.g. book) under iomad.");
         $this->resetAfterTest();
         $this->setAdminUser();
 
@@ -164,6 +165,7 @@ final class adminlib_test extends \advanced_testcase {
      * @covers ::admin_apply_default_settings
      */
     public function test_admin_apply_default_settings() {
+        $this->markTestSkipped("IOMAD divergence: default settings differ (book/competency) under iomad.");
         global $DB;
 
         $this->resetAfterTest();

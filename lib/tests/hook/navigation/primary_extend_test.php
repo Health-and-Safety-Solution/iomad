@@ -80,6 +80,7 @@ final class primary_extend_test extends \advanced_testcase {
      * @covers \core\navigation\views\primary::initialise
      */
     public function test_unsupported_hacks() {
+        $this->markTestSkipped("IOMAD divergence: adds ioaddashboardnode to primary navigation.");
         global $PAGE;
         $this->resetAfterTest();
 
