@@ -36,6 +36,19 @@ require_once($CFG->dirroot . '/user/externallib.php');
  */
 class externallib_test extends externallib_advanced_testcase {
 
+    /** @var \tool_iomadpolicy\iomadpolicy_version First test policy version. */
+    protected $iomadpolicy1;
+    /** @var \tool_iomadpolicy\iomadpolicy_version Second test policy version. */
+    protected $iomadpolicy2;
+    /** @var \tool_iomadpolicy\iomadpolicy_version Third test policy version. */
+    protected $iomadpolicy3;
+    /** @var \stdClass Child test user. */
+    protected $child;
+    /** @var \stdClass Parent test user. */
+    protected $parent;
+    /** @var \stdClass Adult test user. */
+    protected $adult;
+
     /**
      * Setup function- we will create some iomadpolicy docs.
      */
@@ -171,7 +184,7 @@ class externallib_test extends externallib_advanced_testcase {
         // Make sure user can not login.
         $toolconsentpage = $siteiomadpolicymanager->get_redirect_url();
         $this->expectException(\moodle_exception::class);
-        $this->expectExceptionMessage(get_string('siteiomadpolicynotagreed', 'error', $toolconsentpage->out()));
+        $this->expectExceptionMessage(get_string('sitepolicynotagreed', 'error', $toolconsentpage->out()));
         \core_user_external::validate_context(\context_system::instance());
 
         // Call WS to agree to the site iomadpolicy. It will call tool_iomadpolicy handler.
