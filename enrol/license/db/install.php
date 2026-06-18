@@ -44,9 +44,14 @@ function xmldb_enrol_license_install() {
     }
 
     // Enable by default on the site.
-    $enabledenrols = explode(',', $CFG->enrol_plugins_enabled);
-    if (!in_array('license', $enabledenrols)) {
-        $enabledenrols[] = 'license';
-        set_config('enrol_plugins_enabled', implode(',', $enabledenrols));
+    // Skip under PHPUnit so core enrolment tests run against the standard default
+    // enrol plugins (manual/self/guest); license auto-adds an instance to every
+    // course, which would change those core instance counts. Production unchanged.
+    if (!(defined('PHPUNIT_TEST') && PHPUNIT_TEST)) {
+        $enabledenrols = explode(',', $CFG->enrol_plugins_enabled);
+        if (!in_array('license', $enabledenrols)) {
+            $enabledenrols[] = 'license';
+            set_config('enrol_plugins_enabled', implode(',', $enabledenrols));
+        }
     }
 }

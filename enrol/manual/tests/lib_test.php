@@ -43,7 +43,6 @@ final class lib_test extends \advanced_testcase {
      * Test enrol migration function used when uninstalling enrol plugins.
      */
     public function test_migrate_plugin_enrolments() {
-        $this->markTestSkipped("IOMAD divergence: adds a default enrolment instance per course (company/license), so enrol-instance counts differ from core.");
         global $DB, $CFG;
         require_once($CFG->dirroot.'/enrol/manual/locallib.php');
 

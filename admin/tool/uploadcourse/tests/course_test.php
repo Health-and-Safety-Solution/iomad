@@ -396,7 +396,6 @@ final class course_test extends \advanced_testcase {
     }
 
     public function test_data_saved() {
-        $this->markTestSkipped("IOMAD divergence: adds a default enrolment instance per course, so enrol-instance count differs from core.");
         global $DB;
 
         $this->resetAfterTest(true);
