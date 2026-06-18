@@ -120,7 +120,6 @@ final class context_helper_test extends \advanced_testcase {
      * @covers ::get_all_levels
      */
     public function test_get_all_levels() {
-        $this->markTestSkipped("IOMAD divergence: adds CONTEXT_COMPANY (level 13).");
         $levels = context_helper::get_all_levels();
 
         $this->assertArrayHasKey(CONTEXT_SYSTEM, $levels);

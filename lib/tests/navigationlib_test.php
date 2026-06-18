@@ -343,7 +343,7 @@ final class navigationlib_test extends \advanced_testcase {
     }
 
     public function test_navbar_prepend_and_add() {
-        $this->markTestSkipped("IOMAD divergence: adds dashboard navigation node.");
+        $this->markTestSkipped("IOMAD divergence: IOMAD adds company category/context records that shift generated context ids, so this core test's exact category-id sequence in the navbar does not match.");
         global $PAGE;
         // Unfortunate hack needed because people use global $PAGE around the place.
         $PAGE->set_url('/');

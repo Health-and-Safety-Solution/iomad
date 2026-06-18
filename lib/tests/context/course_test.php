@@ -149,11 +149,17 @@ final class course_test extends \advanced_testcase {
      * @covers ::get_compatible_role_archetypes
      */
     public function test_get_compatible_role_archetypes() {
-        $this->markTestSkipped("IOMAD divergence: company course role archetypes are compatible.");
         global $DB;
 
         $allarchetypes = $DB->get_fieldset_select('role', 'DISTINCT archetype', 'archetype IS NOT NULL');
+        // IOMAD adds company role archetypes with their own context compatibility;
+        // this core test only asserts the standard core archetypes.
+        $corearchetypes = ['manager', 'coursecreator', 'editingteacher', 'teacher',
+            'student', 'guest', 'user', 'frontpage'];
         foreach ($allarchetypes as $allarchetype) {
+            if (!in_array($allarchetype, $corearchetypes)) {
+                continue;
+            }
             $levels = context_helper::get_compatible_levels($allarchetype);
             if ($allarchetype === 'editingteacher' || $allarchetype === 'teacher'
                 || $allarchetype === 'student' || $allarchetype === 'manager') {

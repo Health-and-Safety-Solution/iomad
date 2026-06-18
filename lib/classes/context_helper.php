@@ -59,12 +59,12 @@ abstract class context_helper extends context {
         }
         self::$alllevels = array(
             CONTEXT_SYSTEM => \core\context\system::class,
+            CONTEXT_COMPANY => \core\context\company::class,
             CONTEXT_USER => \core\context\user::class,
             CONTEXT_COURSECAT => \core\context\coursecat::class,
             CONTEXT_COURSE => \core\context\course::class,
             CONTEXT_MODULE => \core\context\module::class,
             CONTEXT_BLOCK => \core\context\block::class,
-            CONTEXT_COMPANY => \core\context\company::class,
         );
 
         if (empty($CFG->custom_context_classes)) {
