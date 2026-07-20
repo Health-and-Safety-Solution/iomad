@@ -84,6 +84,7 @@ $string['companycode_help'] = 'This is a unique identifier for this company whic
 $string['companycodetaken'] = 'Company code is already in use in the system';
 $string['companycourseupdated'] = 'Company course updated';
 $string['companydeleted'] = 'Company deleted';
+$string['companyenableshoptask'] = 'Enable the IOMAD shop for a company';
 $string['companygroupsusers'] = 'Manage course groups for ';
 $string['companyregion'] = 'Region';
 $string['company'] = 'Company';
