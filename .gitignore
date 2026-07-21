@@ -55,3 +55,7 @@ moodle-plugin-ci.phar
 .hugo_build.lock
 phpcs.xml
 jsconfig.json
+
+# agent scratch / pipeline scaffolding — never commit
+.sdlc/
+.codex
