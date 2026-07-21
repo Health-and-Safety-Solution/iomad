@@ -59,3 +59,7 @@ $string['importcompletionsfromfile'] = 'Import completion information from file'
 $string['courseswithoutcompletionenabledcouunt'] = 'Number of courses which do not have completion enabled = {$a}';
 $string['courseswithoutcompletioncriteriacouunt'] ='Number of courses which have no completion criteria = {$a}';
 $string['checkcoursestatusmoodle'] = 'Check course settings for import';
+$string['importuser'] = 'Import user completion information ad-hoc task';
+$string['missingusername'] = 'The uploaded file is missing a username or userid column';
+$string['missingcoursename'] = 'The uploaded file is missing a coursename, courseid or coursecode column';
+$string['missingtimecompleted'] = 'The uploaded file is missing a timecompleted column';
