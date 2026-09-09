@@ -163,10 +163,15 @@ if ($cancellineitems && confirm_sesskey()) {
     $selecteditemids = optional_param_array('cancelitems', [], PARAM_INT);
     $selecteditemids = array_filter(array_map('intval', $selecteditemids));
     $refundtypes = ['none', 'partial', 'full'];
-    $refundtype  = optional_param('refundtype', 'none', PARAM_ALPHA);
+    $refundtype  = optional_param('refundtype', '', PARAM_ALPHA);
     $refundamount = optional_param('refundamount', 0, PARAM_FLOAT);
     if (!in_array($refundtype, $refundtypes, true)) {
-        $refundtype = 'none';
+        redirect(
+            new moodle_url('/blocks/iomad_commerce/edit_order_form.php', ['id' => $invoiceid, 'cancelmode' => 1]),
+            'Please select a refund type before cancelling the selected lines.',
+            null,
+            \core\output\notification::NOTIFY_ERROR
+        );
     }
 
     $creditnote_errors = [];
@@ -252,7 +257,7 @@ if ($cancellineitems && confirm_sesskey()) {
 
 		//Delete entry from trainingevent and remove all activties linked in course
 		$DB->delete_records('trainingevent', ['course' => $course->id]);
-		$DB->delete_records('course_modules', ['course' => $course->id]);
+		//$DB->delete_records('course_modules', ['course' => $course->id]);
 	    }
 
             // Delete licenses specific to this course.
@@ -607,12 +612,13 @@ if ($cancelinvoice && confirm_sesskey()) {
 	        echo '<div class="mb-3">';
 	        echo '<label for="id_refundtype"><strong>Refund adjustment</strong></label>';
 	        echo '<p class="text-muted small mb-1">A refund adjustment line item will be added to the order. For invoices already in Xero, raise a separate credit note manually if needed.</p>';
-	        echo '<select id="id_refundtype" name="refundtype" class="form-control" style="max-width:320px;">';
+	        echo '<select id="id_refundtype" name="refundtype" class="form-control" style="max-width:320px;" required>';
+	        echo '<option value="" selected disabled>-- Select refund type --</option>';
 	        if ($hasgeneratedinvoice) {
 	            echo '<option value="none">No refund</option>';
 	            echo '<option value="partial">Partial refund</option>';
 	        }
-	        echo '<option value="full" id="opt-full-refund"' . (!$hasgeneratedinvoice ? ' selected' : '') . '>Full refund (' . s($currency) . ' 0.00)</option>';
+	        echo '<option value="full" id="opt-full-refund">Full refund (' . s($currency) . ' 0.00)</option>';
 	        echo '</select>';
 	        echo '</div>';
 	        echo '<div class="mb-3" id="partial-refund-amount" style="display:none;">';
@@ -643,9 +649,17 @@ if ($cancelinvoice && confirm_sesskey()) {
 	                return Math.round(total * 100) / 100;
 	            }
 
+	            function hasSelection() {
+	                return Array.prototype.some.call(checks, function(c) { return c.checked; });
+	            }
+
+	            function hasRefundType() {
+	                return refundType.value !== "";
+	            }
+
 	            function updateSelectionState() {
 	                var total = getSelectedTotal();
-	                btn.disabled = (total === 0);
+	                btn.disabled = !hasSelection() || !hasRefundType();
 	                var formatted = total.toFixed(2);
 	                fullOption.textContent = "Full refund (" + currency + " " + formatted + ")";
 	                partialInput.setAttribute("max", formatted);
@@ -663,7 +677,10 @@ if ($cancelinvoice && confirm_sesskey()) {
 	                    updateSelectionState();
 	                });
 	            });
-	            refundType.addEventListener("change", toggleRefund);
+	            refundType.addEventListener("change", function() {
+	                toggleRefund();
+	                updateSelectionState();
+	            });
 	            updateSelectionState();
 	            toggleRefund();
 	        })();
