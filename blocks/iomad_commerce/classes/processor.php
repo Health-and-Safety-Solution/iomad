@@ -122,6 +122,8 @@ class processor {
         if ($count) {
             $licensename .= ' (' . ($count + 1) . ')';
         }
+        // companylicense.name is varchar(255), truncate to avoid a DB error on long shop item names.
+        $licensename = substr($licensename, 0, 255);
 
         // Create mdl_companylicense record.
         $companylicense = (object) [];
@@ -220,6 +222,8 @@ class processor {
         if ($count) {
             $licensename .= ' (' . ($count + 1) . ')';
         }
+        // companylicense.name is varchar(255), truncate to avoid a DB error on long shop item names.
+        $licensename = substr($licensename, 0, 255);
 
         // Create mdl_companylicense record.
         $companylicense = (object) [];
