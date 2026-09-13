@@ -172,22 +172,42 @@ class mod_trainingevent_mod_form extends moodleform_mod {
 
         // Check the date against that room usage.
         $classroom = $DB->get_record('classroom', ['id' => $data['classroomid']]);
+        // Begin Customisation: Accellier Limited: Bug fix to not allow end date before start date.
+        if ($data['startdatetime'] > $data['enddatetime']) {
+            $errors['classroomid'] = 'Please select End Date greater than Start Date';
+        }
+        // End Customisation
         if (empty($classroom->isvirtual)) {
+            // Begin Customisation: Accellier Limited: Bug fix to also catch clashes where the existing
+            // booking starts/ends at exactly the same moment as the new one (was strict < / >).
             if ($roomclash = $DB->get_records_sql("SELECT * FROM {trainingevent}
                                                    WHERE classroomid = ".$data['classroomid']."$mysql
-                                                   AND startdatetime < ".$data['startdatetime']."
-                                                   AND enddatetime > ".$data['startdatetime'])) {
-                $errors['classroomid'] = get_string('chosenclassroomunavailable', 'trainingevent');
+                                                   AND startdatetime <= ".$data['startdatetime']."
+                                                   AND enddatetime >= ".$data['startdatetime'])) {
+            // End Customisation
+                // Begin Customisation: Accellier Limited: Show course id in the clash error message.
+                foreach ($roomclash as $clash) {
+                    $errors['classroomid'] = get_string('chosenclassroomunavailable', 'trainingevent').' in Courseid: '.$clash->course;
+                }
+                // End Customisation
             } else if ($roomclash = $DB->get_records_sql("SELECT * FROM {trainingevent}
                                                           WHERE classroomid = ".$data['classroomid']."$mysql
                                                           AND startdatetime > ".$data['startdatetime']."
                                                           AND startdatetime < ".$data['enddatetime'])) {
-                $errors['classroomid'] = get_string('chosenclassroomunavailable', 'trainingevent');
+                // Begin Customisation: Accellier Limited: Show course id in the clash error message.
+                foreach ($roomclash as $clash) {
+                    $errors['classroomid'] = get_string('chosenclassroomunavailable', 'trainingevent').' in Courseid: '.$clash->course;
+                }
+                // End Customisation
             } else if ($roomclash = $DB->get_records_sql("SELECT * FROM {trainingevent}
                                                           WHERE classroomid = ".$data['classroomid']."$mysql
                                                           AND startdatetime > ".$data['startdatetime']."
                                                           AND enddatetime < ".$data['enddatetime'])) {
-                $errors['classroomid'] = get_string('chosenclassroomunavailable', 'trainingevent');
+                // Begin Customisation: Accellier Limited: Show course id in the clash error message.
+                foreach ($roomclash as $clash) {
+                    $errors['classroomid'] = get_string('chosenclassroomunavailable', 'trainingevent').' in Courseid: '.$clash->course;
+                }
+                // End Customisation
             }
         }
         return $errors;

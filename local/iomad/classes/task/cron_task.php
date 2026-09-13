@@ -165,7 +165,8 @@ class cron_task extends \core\task\scheduled_task {
         }
 
         // Clear users from courses where the license has expired and the option is chosen
-        mtrace ("Clear users from courses where the license has expired and the option is chosen");
+	//Begin Customisation: Accellier: Ensure the cron job donot run license expired cron job
+        /*mtrace ("Clear users from courses where the license has expired and the option is chosen");
         if ($licenses = $DB->get_records_sql("SELECT DISTINCT cl.*  FROM {companylicense} cl
                                               JOIN {local_iomad_track} lit ON (cl.id = lit.licenseid)
                                               WHERE cl.clearonexpire = 1
@@ -219,6 +220,7 @@ class cron_task extends \core\task\scheduled_task {
                     }
                 }
             }
-        }
+        }*/
+	//End Customisation
     }
 }

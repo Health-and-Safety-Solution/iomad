@@ -98,7 +98,11 @@ class course_search_form extends moodleform {
                     }
                     break;
                 case "select":
-                    $options = [0 => ''] + explode("\r\n", $attributes['options']);
+                    // Begin Customisation: Accellier Limited: Bug fix to allow search by picklist custom field.
+                    //$options = [0 => ''] + explode("\r\n", $attributes['options']);
+                    $options = explode("\r\n", $attributes['options']);
+                    array_unshift($options, '');
+                    // End Customisation
                     $mform->addElement('select', 'customfield_' . $field->shortname, format_text($field->name), $options, $attributes);
                     break;
             }

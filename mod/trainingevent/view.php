@@ -49,6 +49,10 @@ if (! $cm = get_coursemodule_from_id('trainingevent', $id)) {
     throw new moodle_exception('invalidcoursemodule');
 }
 
+//Begin Customisation: Accellier: not open the Training View for Delegates
+redirect($CFG->wwwroot."/course/view.php?id=".$cm->course);
+//End Customisation
+
 if (! $course = $DB->get_record("course", ["id" => $cm->course])) {
     throw new moodle_exception('coursemisconf');
 }

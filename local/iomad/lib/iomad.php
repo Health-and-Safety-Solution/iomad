@@ -467,7 +467,7 @@ class iomad {
                 $mycompanycategories = $DB->get_records_sql("SELECT DISTINCT cc.id
                                                              FROM {course_categories} cc
                                                              WHERE " . $DB->sql_like('cc.path', ':companycategorysearch'),
-                                                             ['companycategorysearch' => '/' . $company->category . '%']);
+                                                             ['companycategorysearch' => '/' . $company->category . '']);
                 $companycategoriescache->set($company->id, $mycompanycategories);
             }
         } else {
@@ -774,7 +774,10 @@ class iomad {
 
         // If we are installing this will be called to build
         // the basic category tree so just say yes.
-        if (during_initial_install() || is_siteadmin($USER->id)) {
+        //if (during_initial_install() || is_siteadmin($USER->id)) {
+        // Begin Customisation: Accellier Limited: Change to allow Admin team to work without switching companies.
+        if (during_initial_install() || is_siteadmin($USER->id) || user_has_role_assignment($USER->id, 1, context_system::instance())) {
+        // End Customisation
             return true;
         }
 

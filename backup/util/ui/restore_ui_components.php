@@ -326,6 +326,9 @@ class restore_course_search extends restore_search_base {
         $from       = " FROM {course} c ";
         $where      = " WHERE (".$DB->sql_like('c.fullname', ':fullnamesearch', false)." OR ".
             $DB->sql_like('c.shortname', ':shortnamesearch', false).")";
+        // Begin Customisation: Accellier Limited: Restrict course reuse/copy search to a single category.
+        $where .= " AND c.category = 14";
+        // End Customisation
         $orderby    = " ORDER BY c.sortorder";
 
         if ($this->currentcourseid !== null && !$this->includecurrentcourse) {
