@@ -70,6 +70,11 @@ class login_signup_form extends moodleform implements renderable, templatable {
         $mform->addRule('password', get_string('maximumchars', '', MAX_PASSWORD_CHARACTERS),
             'maxlength', MAX_PASSWORD_CHARACTERS, 'client');
 
+	//Begin Customisation: retype Password Field
+	$mform->addElement('password', 'password2', 'Retype Password','required');
+	$mform->addElement('static', 'certificatenamemessage', '', '<b>Please input your name below in the format it will appear on your certificates</b>');
+	//End Customisation
+
         if (!$CFG->local_iomad_signup_useemail) {
             $mform->addElement('text', 'email', get_string('email'), 'maxlength="100" size="25"');
             $mform->setType('email', core_user::get_property_type('email'));
@@ -151,6 +156,29 @@ class login_signup_form extends moodleform implements renderable, templatable {
         }
     }
 
+    //Begin Customisation: Auto-capitalise first/last name
+    /**
+     * Auto-capitalise the first letter of the first/last name so
+     * certificates render with a capital letter regardless of how the
+     * user typed it.
+     *
+     * @return object|null submitted data or null if not submitted/validated
+     */
+    public function get_data() {
+        $data = parent::get_data();
+        if ($data) {
+            foreach (['firstname', 'lastname'] as $namefield) {
+                if (!empty($data->$namefield)) {
+                    $firstchar = mb_substr($data->$namefield, 0, 1, 'UTF-8');
+                    $rest = mb_substr($data->$namefield, 1, null, 'UTF-8');
+                    $data->$namefield = mb_strtoupper($firstchar, 'UTF-8') . $rest;
+                }
+            }
+        }
+        return $data;
+    }
+    //End Customisation
+
     /**
      * Validate user supplied data on the signup form.
      *
@@ -178,6 +206,14 @@ class login_signup_form extends moodleform implements renderable, templatable {
                 $errors['recaptcha_element'] = get_string('missingrecaptchachallengefield');
             }
         }
+
+	//Begin Customisation: Check retyped password match
+	if ($data['password'] <> $data['password2']) {
+		$errors['password'] = 'Password mismatch';
+	}
+	// Names are auto-capitalised in get_data() below, so no validation
+	// is required here.
+	//End Customisation
 
         // IOMAD
         if ($CFG->local_iomad_signup_useemail) {

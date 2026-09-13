@@ -161,7 +161,10 @@ class IomadMergeSearch{
                 break;
         }
 
-        $ordering = ' $departmentsql ORDER BY lastname, firstname';
+        //Begin Customisation: Accellier Limited: Bug fix in user search
+        //$ordering = ' $departmentsql ORDER BY lastname, firstname';
+        $ordering = $departmentsql .' ORDER BY lastname, firstname';
+        //End Customisation
 
         $results = $DB->get_records_sql($sql . $ordering, $params);
         return $results;

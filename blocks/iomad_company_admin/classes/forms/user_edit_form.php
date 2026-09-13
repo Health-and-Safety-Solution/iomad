@@ -200,7 +200,9 @@ class user_edit_form extends \moodleform {
         }
 
         // Optional profile fields.
-        $mform->addElement('header', 'profile_id', get_string('profilefields', 'mnet'));
+	//Begin Customisation: Accellier
+        //$mform->addElement('header', 'profile_id', get_string('profilefields', 'mnet'));
+	//End Customisation
         // Get global fields.
         if ($fields = $DB->get_records_sql("SELECT * FROM {user_info_field}
                                             WHERE categoryid NOT IN (

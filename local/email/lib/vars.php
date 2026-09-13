@@ -106,7 +106,7 @@ class EmailVars {
             // Approvals stuffs.
                         'Approveuser_FirstName', 'Approveuser_LastName',
             // Course fields .
-                        'Course_FullName', 'Course_ShortName', 'CourseURL', 'Course_ReportText', 'Course_Summary',
+                        'Course_FullName', 'Course_ShortName', 'CourseURL', 'Course_ReportText', 'Course_Summary', 'CourseLocation',
             // ClassRoom fields.
                         'Classroom_Name', 'Classroom_Address', 'Classroom_Postcode', 'Classroom_City',
                         'Classroom_Country', 'Classroom_Capacity', 'Classroom_Summary', 'Classroom_Time',
@@ -123,7 +123,7 @@ class EmailVars {
             // Activity information fields .
                         'Activity_Name', 'Activity_Duedate',
             // Miscellaneouss fields.
-                        'LinkURL', 'SiteURL', 'Event_Name',
+                        'LinkURL', 'SiteURL', 'Event_Name', 'InhouseCourseConfirmURL', 'InhouseCourseEnquiryURL',
             // Microlearning fields.
                         'Nugget_Name', 'Nugget_URL'
         );
@@ -235,5 +235,41 @@ class EmailVars {
         }
 
         return $returnurl;
+    }
+
+    /*
+     * Customisation by Accellier: Function to get the Summary field of the Training venue linked with the Course.
+     */
+    function CourseLocation() {
+        global $DB;
+        $sql = "SELECT description, c.name, address, city, postcode
+                  FROM {trainingevent} te
+                  JOIN {classroom} c ON te.classroomid = c.id
+                 WHERE te.course = :courseid
+                 LIMIT 1";
+        $record = $DB->get_record_sql($sql, ['courseid' => $this->course->id]);
+        if (empty($record)) {
+            return '';
+        } else {
+            return '<p>'.$record->name.(empty($record->address) ? '' : '<br/>'.$record->address).(empty($record->city) ? '' : '<br/>'.$record->city.' '.$record->postcode).'</p>'.(empty($record->description) ? '' : $record->description);
+        }
+    }
+
+    /*
+     * Customisation by Accellier: URL used in the inhouse course confirmation email.
+     */
+    function InhouseCourseConfirmURL() {
+        if ($this->classroom->inhouserequest_confirm_id > 0) {
+            return new moodle_url($this->company->get_wwwroot()).'/blocks/iomad_ecommerce/course_confirmation.php?batchid='.$this->classroom->inhouserequest_confirm_id;
+        } else {
+            return new moodle_url($this->company->get_wwwroot()).'/blocks/iomad_ecommerce/course_confirmation.php?'.$this->classroom->inhouserequest_class_id;
+        }
+    }
+
+    /*
+     * Customisation by Accellier: URL used in the inhouse course enquiry email.
+     */
+    function InhouseCourseEnquiryURL() {
+        return $this->classroom->inhouse_enquiry_review_url ?? '';
     }
 }

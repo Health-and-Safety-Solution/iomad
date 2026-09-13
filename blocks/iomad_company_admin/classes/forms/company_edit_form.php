@@ -137,6 +137,15 @@ class company_edit_form extends \company_moodleform {
                             'maxlength="50" size="50"');
         $mform->setType('region', PARAM_NOTAGS);
 
+        // Begin Customisation: Accellier Limited: Bring Email in top section
+        $mform->addRule('region', $strrequired, 'required', null, 'client');
+        $mform->addElement('text', 'custom2',
+                            get_string('custom2', 'block_iomad_company_admin'),
+                            'maxlength="255" size="50"');
+        $mform->setType('custom2', PARAM_EMAIL);
+        $mform->addRule('custom2', $strrequired, 'required', null, 'client');
+        // End Customisation
+
         $mform->addElement('text', 'postcode',
                             get_string('postcode', 'block_iomad_company_admin'), ['size' => 20, 'maxlength' => 20]);
         $mform->setType('postcode', PARAM_NOTAGS);
@@ -317,10 +326,12 @@ class company_edit_form extends \company_moodleform {
                             get_string('custom1', 'block_iomad_company_admin'),
                             'maxlength="255" size="50"');
         $mform->setType('custom1', PARAM_NOTAGS);
-        $mform->addElement('text', 'custom2',
+        // Begin Customisation: Accellier Limited: custom2 moved to top section as company email, see above.
+        /*$mform->addElement('text', 'custom2',
                             get_string('custom2', 'block_iomad_company_admin'),
                             'maxlength="255" size="50"');
-        $mform->setType('custom2', PARAM_NOTAGS);
+        $mform->setType('custom2', PARAM_NOTAGS);*/
+        // End Customisation
         $mform->addElement('text', 'custom3',
                             get_string('custom3', 'block_iomad_company_admin'),
                             'maxlength="255" size="50"');

@@ -484,7 +484,10 @@ if (!empty($cancelled)) {
                     continue;
                 }
                 // All validation moved to form2.
-                if (isset($formdata->$field)) {
+		//Begin Customisation: to resolve Upload issue if a custom field is Text area
+                //if (isset($formdata->$field)) {
+		if (is_string($formdata->$field)) {
+		//End Customisation
                     // Process templates.
                     $user->$field = process_template($formdata->$field, $user);
                 }
