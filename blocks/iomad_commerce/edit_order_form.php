@@ -144,6 +144,16 @@ $mform = new \block_iomad_commerce\forms\order_edit_form($PAGE->url, $invoiceid,
 $mform->set_data($invoice);
 
 if (!empty(optional_param('generateinvoice', 0, PARAM_BOOL)) && confirm_sesskey()) {
+    // Selected invoiceitem ids to invoice. Empty = all remaining uninvoiced lines (legacy behaviour).
+    $selectedinvoiceitems = optional_param_array('invoiceitems', [], PARAM_INT);
+    $selectedinvoiceitems = array_values(array_unique(array_filter(array_map('intval', $selectedinvoiceitems), function($v) { return $v > 0; })));
+    if (!empty($selectedinvoiceitems)) {
+        // Guard: only allow items belonging to this invoice.
+        list($ginsql, $ginparams) = $DB->get_in_or_equal($selectedinvoiceitems, SQL_PARAMS_QM);
+        $ginparams[] = $invoiceid;
+        $validids = $DB->get_fieldset_sql("SELECT id FROM {invoiceitem} WHERE id $ginsql AND invoiceid = ?", $ginparams);
+        $selectedinvoiceitems = array_map('intval', $validids);
+    }
     $xeroinvoice = $DB->get_record('iomad_xero_invoice', ['invoiceid' => $invoiceid]);
     if ($xeroinvoice && property_exists($xeroinvoice, 'modified_date')) {
         $xeroinvoice->modified_date = time();
@@ -151,12 +161,31 @@ if (!empty(optional_param('generateinvoice', 0, PARAM_BOOL)) && confirm_sesskey(
     }
 
     if (function_exists('task_inhouse_xero')) {
+        $genstart = time();
         ob_start();
-        task_inhouse_xero($invoiceid);
+        task_inhouse_xero($invoiceid, $selectedinvoiceitems);
         ob_end_clean();
     }
 
-    redirect(new moodle_url('/blocks/iomad_commerce/edit_order_form.php', ['id' => $invoiceid]));
+    // Surface Xero failures to the operator instead of swallowing them:
+    // task_inhouse_xero() only mtrace()s, so check its error table for this invoice.
+    // Freshness-checked: ignore stale rows predating this run (cleared nightly).
+    $xeroerror = $DB->get_record('iomad_xero_invoice_error', ['invoiceid' => $invoiceid]);
+    if (!empty($genstart) && $xeroerror && (int)$xeroerror->modified_date >= $genstart) {
+        redirect(
+            new moodle_url('/blocks/iomad_commerce/edit_order_form.php', ['id' => $invoiceid]),
+            'Sent to Xero with errors — details are shown on this page below.',
+            null,
+            \core\output\notification::NOTIFY_WARNING
+        );
+    }
+
+    redirect(
+        new moodle_url('/blocks/iomad_commerce/edit_order_form.php', ['id' => $invoiceid]),
+        get_string('changessaved'),
+        null,
+        \core\output\notification::NOTIFY_SUCCESS
+    );
 }
 
 if ($cancellineitems && confirm_sesskey()) {
@@ -204,6 +233,51 @@ if ($cancellineitems && confirm_sesskey()) {
 
     $firstcancelleditemid = null;
 
+    // Xero, not-yet-invoiced lines only: partial = generate invoice then credit note,
+    // none = generate invoice only, full = nothing. Must run before courses are
+    // renamed '[Cancelled]' below, as invoice generation excludes cancelled courses.
+    if (in_array($refundtype, ['partial', 'none'], true) && !empty($selecteditemids) && function_exists('task_inhouse_xero')) {
+        list($uinsql, $uinparams) = $DB->get_in_or_equal($selecteditemids, SQL_PARAMS_QM);
+        $uinparams[] = $invoiceid;
+        $uninvoicedids = array_map('intval', $DB->get_fieldset_sql(
+            "SELECT ii.id FROM {invoiceitem} ii
+              WHERE ii.id $uinsql AND ii.invoiceid = ?
+                AND NOT EXISTS (SELECT 1 FROM {iomad_xero_invoice} idi
+                                 INNER JOIN {iomad_xero_invoice_byline} idil ON idi.id = idil.iomad_xero_invoiceid
+                                 WHERE idi.invoiceid = ii.invoiceid AND idil.invoiceitemid = ii.id)",
+            $uinparams
+        ));
+        if (!empty($uninvoicedids)) {
+            $cancelprestart = time();
+            ob_start();
+            task_inhouse_xero($invoiceid, $uninvoicedids);
+            ob_end_clean();
+            $hasxeroinvoice = $DB->record_exists('iomad_xero_invoice', ['invoiceid' => $invoiceid]);
+            // If generation just failed, abort the cancel: destroying the lines now
+            // would lose the revenue with no invoice and no credit note.
+            $pregenerror = $DB->get_record('iomad_xero_invoice_error', ['invoiceid' => $invoiceid]);
+            if ($pregenerror && (int)$pregenerror->modified_date >= $cancelprestart) {
+                redirect(
+                    new moodle_url('/blocks/iomad_commerce/edit_order_form.php', ['id' => $invoiceid]),
+                    'Xero invoice generation failed — nothing was cancelled. Details are shown on this page below.',
+                    null,
+                    \core\output\notification::NOTIFY_ERROR
+                );
+            }
+        }
+    }
+
+    // Whether this invoice uses per-line Xero links (inhouse splits) or a single
+    // invoice-level link (open courses, no byline rows). Full refunds need the
+    // per-line check only in the byline model; otherwise fall back to the
+    // invoice-level mapping exactly as before.
+    $usesbylines = $DB->record_exists_sql(
+        "SELECT 1 FROM {iomad_xero_invoice} idi
+           INNER JOIN {iomad_xero_invoice_byline} idil ON idi.id = idil.iomad_xero_invoiceid
+          WHERE idi.invoiceid = ?",
+        [$invoiceid]
+    );
+
     foreach ($selecteditemids as $itemid) {
         $item = $DB->get_record('invoiceitem', ['id' => $itemid, 'invoiceid' => $invoiceid]);
         if (!$item || $DB->record_exists('invoiceitem_cancelled', ['invoiceitemid' => $itemid])) {
@@ -220,8 +294,17 @@ if ($cancellineitems && confirm_sesskey()) {
             $firstcancelleditemid = $itemid;
         }
 
-        // For a full refund create a per-item credit note in Xero for the item's full amount.
-        if ($hasxeroinvoice && function_exists('create_xero_credit_note') && $refundtype === 'full') {
+        // For a full refund create a per-item credit note, but only for lines already
+        // invoiced in Xero. Uninvoiced lines get nothing (no invoice, no credit).
+        // Open-course orders use a single invoice-level link (no bylines), so the
+        // per-line check applies only to the byline model.
+        $lineinvoiced = !$usesbylines || $DB->record_exists_sql(
+            "SELECT 1 FROM {iomad_xero_invoice} idi
+              INNER JOIN {iomad_xero_invoice_byline} idil ON idi.id = idil.iomad_xero_invoiceid
+              WHERE idi.invoiceid = ? AND idil.invoiceitemid = ?",
+            [$invoiceid, $itemid]
+        );
+        if ($hasxeroinvoice && $lineinvoiced && function_exists('create_xero_credit_note') && $refundtype === 'full') {
             $cn_result = create_xero_credit_note($itemid, $invoiceid);
             if (!$cn_result['success']) {
                 $creditnote_errors[] = 'Item ' . $itemid . ': ' . ($cn_result['error'] ?? 'unknown error');
@@ -528,17 +611,7 @@ if ($cancelinvoice && confirm_sesskey()) {
 	}
 
 	if (!$hasxeroinvoice && $isinhouseinvoice) {
-		if ($invoice->status === 'c') {
-		} else {
-			if(iomad::has_capability('block/iomad_ecommerce:editQuotation', $companycontext)) {
-				echo '<form method="post" style="display:inline;">';
-				echo '<input type="hidden" name="id" value="' . $invoiceid . '" />';
-				echo '<input type="hidden" name="generateinvoice" value="1" />';
-				echo '<input type="hidden" name="sesskey" value="' . sesskey() . '" />';
-				echo '<button type="submit" class="btn btn-primary">Generate Invoice</button>';
-				echo '</form>';
-			}
-		}
+		// Legacy flag retained for compatibility; actual button below uses $uninvoiceditems.
 	}
 
 	if (!$invoice->paymentid) {
@@ -547,6 +620,162 @@ if ($cancelinvoice && confirm_sesskey()) {
 	}
 
 	echo '</div>';
+
+	// Generate invoice block sits in its own row below the Edit/Cancel buttons
+	// so the card does not stretch the top button row.
+	if (!$editmode && !$cancelmode) {
+	if ($invoice->status !== 'c') {
+		if(iomad::has_capability('block/iomad_ecommerce:editQuotation', $companycontext)) {
+			// Lines still awaiting Xero invoice generation (excludes cancelled + already-invoiced lines).
+			$uninvoiceditems = $DB->get_records_sql(
+				"SELECT ii.id, ii.price, ii.license_allocation, ii.currency, c.fullname AS coursename
+				 FROM {invoiceitem} ii
+				 INNER JOIN {course_shopsettings} css ON css.id = ii.invoiceableitemid AND css.companyid = 28
+				 INNER JOIN {course_shopsettings_courses} cssc ON css.id = cssc.itemid
+				 INNER JOIN {course} c ON c.id = cssc.courseid
+				 WHERE ii.invoiceid = ?
+				   AND LOWER(c.fullname) NOT LIKE '%cancel%'
+				   AND NOT EXISTS (SELECT 1 FROM {iomad_xero_invoice} idi
+				                    INNER JOIN {iomad_xero_invoice_byline} idil ON idi.id = idil.iomad_xero_invoiceid
+				                    WHERE idi.invoiceid = ii.invoiceid AND idil.invoiceitemid = ii.id)
+				   AND NOT EXISTS (SELECT 1 FROM {invoiceitem_cancelled} ic WHERE ic.invoiceitemid = ii.id)
+				 ORDER BY ii.id",
+				[$invoiceid]
+			);
+			// Linked surcharges per course line (display only; mirrors the
+			// local/iomad_xero inclusion rule: id after the course line, before
+			// the next course line, not invoiced, not cancelled).
+			$linkedcharges = [];
+			if (!empty($uninvoiceditems)) {
+				$courseids = array_map('intval', array_keys($uninvoiceditems));
+				sort($courseids);
+				$surcharges = $DB->get_records_sql(
+					"SELECT ii.id, ii.price, ii.currency, css.name AS itemname
+					   FROM {invoiceitem} ii
+					   INNER JOIN {course_shopsettings} css ON css.id = ii.invoiceableitemid
+					  WHERE ii.invoiceid = ?
+					    AND ((ii.invoiceableitemtype = 'singlepurchase' AND css.name IN ('Mileage', 'Trainer Accommodation', 'Acorn Training Room'))
+					      OR (ii.invoiceableitemtype = 'licenseblock' AND css.name = 'Certificate Fee'))
+					    AND ii.invoiceableitemtype <> 'refundadjustment'
+					    AND NOT EXISTS (SELECT 1 FROM {iomad_xero_invoice} idi
+					                    INNER JOIN {iomad_xero_invoice_byline} idil ON idi.id = idil.iomad_xero_invoiceid
+					                    WHERE idi.invoiceid = ii.invoiceid AND idil.invoiceitemid = ii.id)
+					    AND NOT EXISTS (SELECT 1 FROM {invoiceitem_cancelled} ic WHERE ic.invoiceitemid = ii.id)
+					  ORDER BY ii.id",
+					[$invoiceid]
+				);
+				foreach ($uninvoiceditems as $ui) {
+					$nextcourseid = null;
+					foreach ($courseids as $cid) {
+						if ($cid > (int)$ui->id) {
+							$nextcourseid = $cid;
+							break;
+						}
+					}
+					$linkedcharges[(int)$ui->id] = [];
+					foreach ($surcharges as $s) {
+						if ((int)$s->id > (int)$ui->id && ($nextcourseid === null || (int)$s->id < $nextcourseid)) {
+							$linkedcharges[(int)$ui->id][] = $s;
+						}
+					}
+				}
+			}
+			if (!empty($uninvoiceditems)) {
+				// Latest Xero error for this invoice, shown only if newer than the last
+				// successful sync (mapping), so fixed errors disappear on their own.
+				$xerolasterror = $DB->get_record('iomad_xero_invoice_error', ['invoiceid' => $invoiceid]);
+				$xeromaps = $DB->get_records('iomad_xero_invoice', ['invoiceid' => $invoiceid], '', 'id, modified_date');
+				$mapts = 0;
+				foreach ($xeromaps as $xm) {
+					$mapts = max($mapts, (int)$xm->modified_date);
+				}
+				if ($xerolasterror && (int)$xerolasterror->modified_date >= $mapts) {
+					echo '<div class="alert alert-warning" style="display:block;width:100%;margin-top:12px;">';
+					echo '<strong>Last Xero error (' . userdate((int)$xerolasterror->modified_date) . '):</strong><br>';
+					echo s(shorten_text($xerolasterror->error, 1000));
+					echo '</div>';
+				}
+				echo '<div style="display:block;width:100%;margin-top:12px;">';
+				echo '<button type="button" class="btn btn-primary" id="generate-invoice-toggle" aria-expanded="false" aria-controls="generate-invoice-panel">Generate Invoice &#9656;</button>';
+				echo '<div id="generate-invoice-panel" style="display:none;margin-top:8px;">';
+				echo '<form method="post" style="display:block;width:100%;" id="generate-invoice-form">';
+				echo '<input type="hidden" name="id" value="' . $invoiceid . '" />';
+				echo '<input type="hidden" name="generateinvoice" value="1" />';
+				echo '<input type="hidden" name="sesskey" value="' . sesskey() . '" />';
+				echo '<div class="card mb-3"><div class="card-body">';
+				echo '<h6 class="card-title mb-2">Generate Invoice - select lines</h6>';
+				echo '<p class="text-muted small mb-2">Only selected lines will be sent to Xero. Linked surcharges (Mileage, Accommodation, etc.) for each course are listed underneath and included automatically. Already-invoiced lines are not listed.</p>';
+				foreach ($uninvoiceditems as $ui) {
+					$linetotal = (float)$ui->price * (int)$ui->license_allocation;
+					echo '<label style="display:block;font-weight:normal;margin-bottom:0;">';
+					echo '<input type="checkbox" name="invoiceitems[]" value="' . (int)$ui->id . '" class="generate-invoice-check" checked /> ';
+					echo s($ui->coursename) . ' <span class="text-muted">(' . s($ui->currency) . ' ' . number_format($linetotal, 2) . ')</span>';
+					echo '</label>';
+					$linked = $linkedcharges[(int)$ui->id] ?? [];
+					if (!empty($linked)) {
+						echo '<ul class="small text-muted" style="margin:0 0 6px 24px;padding-left:16px;list-style:disc;">';
+						foreach ($linked as $lc) {
+							echo '<li>' . s($lc->itemname) . ' <span>(' . s($lc->currency) . ' ' . number_format((float)$lc->price, 2) . ')</span></li>';
+						}
+						echo '</ul>';
+					} else {
+						echo '<div class="small text-muted" style="margin:0 0 6px 24px;">(no linked surcharges)</div>';
+					}
+				}
+				echo '<div class="mt-2" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">';
+				echo '<button type="button" class="btn btn-sm btn-secondary" id="generate-invoice-all">Select all</button>';
+				echo '<button type="button" class="btn btn-sm btn-secondary" id="generate-invoice-none">Select none</button>';
+				echo '<button type="submit" class="btn btn-primary" id="generate-invoice-btn">Generate selected invoices</button>';
+				echo '</div>';
+				echo '</div></div>';
+				echo '</form>';
+				echo '</div>';
+				echo '</div>';
+				echo '<script>
+				(function() {
+				    var toggle = document.getElementById("generate-invoice-toggle");
+				    var panel = document.getElementById("generate-invoice-panel");
+				    if (toggle && panel) {
+				        toggle.addEventListener("click", function() {
+				            var open = panel.style.display !== "none";
+				            panel.style.display = open ? "none" : "block";
+				            toggle.setAttribute("aria-expanded", open ? "false" : "true");
+				            toggle.innerHTML = open ? "Generate Invoice &#9656;" : "Generate Invoice &#9662;";
+				        });
+				    }
+				    var form = document.getElementById("generate-invoice-form");
+				    if (!form) { return; }
+				    var checks = form.querySelectorAll(".generate-invoice-check");
+				    var btn = document.getElementById("generate-invoice-btn");
+				    function updateBtn() {
+				        var any = false;
+				        Array.prototype.forEach.call(checks, function(c) { if (c.checked) { any = true; } });
+				        btn.disabled = !any;
+				    }
+				    Array.prototype.forEach.call(checks, function(c) { c.addEventListener("change", updateBtn); });
+				    document.getElementById("generate-invoice-all").addEventListener("click", function() {
+				        Array.prototype.forEach.call(checks, function(c) { c.checked = true; });
+				        updateBtn();
+				    });
+				    document.getElementById("generate-invoice-none").addEventListener("click", function() {
+				        Array.prototype.forEach.call(checks, function(c) { c.checked = false; });
+				        updateBtn();
+				    });
+				    form.addEventListener("submit", function(e) {
+				        var any = false;
+				        Array.prototype.forEach.call(checks, function(c) { if (c.checked) { any = true; } });
+				        if (!any) {
+				            e.preventDefault();
+				            alert("Please select at least one line to invoice.");
+				        }
+				    });
+				    updateBtn();
+				})();
+				</script>';
+			}
+		}
+	}
+	}
 
 	if ($cancelmode) {
 	    $xeroinvoice_cancel = $DB->get_record('iomad_xero_invoice', ['invoiceid' => $invoiceid], 'invoiceid, xeroinvoiceid');
