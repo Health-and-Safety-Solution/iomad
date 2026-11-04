@@ -367,13 +367,13 @@ class helper {
         $result = '';
         $multiplecurrency = false;
         $currentcurrency = '';
-
-        /*if ($basketitems = $DB->get_records_sql('SELECT ii.*, css.name
-                                                FROM {invoiceitem} ii
-                                                    INNER JOIN {course_shopsettings} css ON ii.invoiceableitemid = css.id
-                                                WHERE ii.invoiceid = :invoiceid
-                                                ORDER BY ii.id
-                                               ', array('invoiceid' => $invoiceid))) {*/
+        // Display-only ex-VAT: invoiceitem.price stays VAT-inclusive everywhere
+        // (Xero lines: LineAmountTypes=INCLUSIVE). Code lives in delivered
+        // block_iomad_commerce; VAT rate read from block_iomad_ecommerce config.
+        $oneditpage = basename($_SERVER['SCRIPT_NAME']) == 'edit_order_form.php';
+        $editmoderequested = $oneditpage && !empty(optional_param('editmode', 0, PARAM_BOOL));
+        $vatrate = (float)($CFG->block_iomad_ecommerce_vat ?? 20);
+        $exvatfactor = $vatrate > 0 ? 1 + ($vatrate / 100) : 1.0;
 
 	
                if ($basketitems = $DB->get_records_sql('SELECT ii.*, css.name, csc.courseid, i.reference AS invoice_reference, i.status AS invoice_status, css.companyid
@@ -387,7 +387,7 @@ class helper {
             $table = new html_table();
             $table->head = array (get_string('course'),
                                   "",
-                                  get_string('unitprice', 'block_iomad_commerce'),
+                                  $editmoderequested ? get_string('unitprice_ex_incvat', 'block_iomad_commerce') : ($oneditpage ? get_string('unitprice_exvat', 'block_iomad_commerce') : get_string('unitprice', 'block_iomad_commerce')),
                                   get_string('amount', 'block_iomad_commerce')
                                  );
 
@@ -435,10 +435,23 @@ class helper {
 
 		$companyid = \iomad::get_my_companyid(\context_system::instance());
 		$companycontext = \core\context\company::instance($companyid);
-		if (basename($_SERVER['SCRIPT_NAME']) == 'edit_order_form.php' && !empty(optional_param('editmode', 0, PARAM_BOOL)) && $allowpriceedit && $item->invoice_status <> 'c' && $item->invoiceableitemtype !== 'refundadjustment' && !in_array((int)$item->id, $cancelledids) && iomad::has_capability('block/iomad_ecommerce:editQuotation', $companycontext)) {
-                    $unitprice = '<input type="number" step="0.01" min="0" name="price[' . $item->id . ']" value="' . s(number_format((float)$item->price, 2, '.', '')) . '" style="width:110px;">';
+		if ($oneditpage && !empty(optional_param('editmode', 0, PARAM_BOOL)) && $allowpriceedit && $item->invoice_status <> 'c' && $item->invoiceableitemtype !== 'refundadjustment' && !in_array((int)$item->id, $cancelledids) && iomad::has_capability('block/iomad_ecommerce:editQuotation', $companycontext)) {
+                    // Dual helper: ex-VAT box (no name, display/helper only) + incl-VAT box
+                    // (name="price[]", the only value submitted — update path unchanged).
+                    $exvatprice = $exvatfactor > 1 ? (float)$item->price / $exvatfactor : (float)$item->price;
+                    $unitprice = '<div style="display:inline-block;text-align:right;white-space:nowrap;vertical-align:middle;">'
+                        . '<div style="white-space:nowrap;">'
+                        . '<input type="number" step="0.01" min="0" class="price-exvat" data-itemid="' . (int)$item->id . '" data-factor="' . s(number_format($exvatfactor, 4, '.', '')) . '" value="' . s(number_format($exvatprice, 2, '.', '')) . '" style="width:110px;vertical-align:middle;" title="ex VAT">'
+                        . ' <span class="text-muted small" style="display:inline-block;width:32px;text-align:left;">ex</span></div>'
+                        . '<div style="white-space:nowrap;margin-top:4px;">'
+                        . '<input type="number" step="0.01" min="0" name="price[' . $item->id . ']" class="price-incvat" data-itemid="' . (int)$item->id . '" data-factor="' . s(number_format($exvatfactor, 4, '.', '')) . '" value="' . s(number_format((float)$item->price, 2, '.', '')) . '" style="width:110px;vertical-align:middle;" title="incl VAT">'
+                        . ' <span class="text-muted small" style="display:inline-block;width:32px;text-align:left;">incl</span></div>'
+                        . '</div>';
                 } else if ($item->invoiceableitemtype == 'singlepurchase') {
                     $unitprice = '';
+                } else if ($oneditpage) {
+                    $exvatprice = $exvatfactor > 1 ? (float)$item->price / $exvatfactor : (float)$item->price;
+                    $unitprice = $item->currency . number_format($exvatprice, 2);
                 } else {
                     $unitprice = $item->currency . number_format($item->price, 2);
                 }
@@ -578,6 +591,21 @@ class helper {
 
             if (!empty($table)) {
                 $result .= html_writer::table($table);
+            }
+            // Dual ex/incl edit helper: only the incl-VAT input (name="price[]") is
+            // submitted; the ex-VAT input is a display/helper that auto-calculates.
+            if ($oneditpage) {
+                $result .= '<script>(function(){if(window.__priceVatSync)return;window.__priceVatSync=1;'
+                    . 'function r2(n){return Math.round(n*100)/100;}'
+                    . 'document.querySelectorAll(".price-exvat").forEach(function(ex){'
+                    . 'var id=ex.getAttribute("data-itemid");'
+                    . 'var inc=document.querySelector(\'.price-incvat[data-itemid="\'+id+\'"]\');'
+                    . 'if(!inc)return;'
+                    . 'var f=parseFloat(ex.getAttribute("data-factor"))||1;'
+                    . 'ex.addEventListener("input",function(){var v=parseFloat(ex.value);'
+                    . 'inc.value=isNaN(v)?"":r2(v*f).toFixed(2);});'
+                    . 'inc.addEventListener("input",function(){var v=parseFloat(inc.value);'
+                    . 'ex.value=isNaN(v)?"":r2(v/f).toFixed(2);});});})();</script>';
             }
         }
         if ($multiplecurrency) {

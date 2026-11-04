@@ -504,6 +504,9 @@ if ($cancelinvoice && confirm_sesskey()) {
 } else if ($data = $mform->get_data()) {
 	$postedprices = optional_param_array('price', [], PARAM_RAW_TRIMMED);
 	$xero_sync_needed = false;
+	// Update path unchanged: price[] posts VAT-inclusive unit prices (DB, Xero
+	// LineAmountTypes=INCLUSIVE and refunds all use incl VAT). Ex-VAT inputs on
+	// this page are display/helpers only (no name attribute).
 
 	if (isset($data->po_ref)) {
 		$poRef = trim((string)$data->po_ref);
@@ -681,6 +684,10 @@ if ($cancelinvoice && confirm_sesskey()) {
 				}
 			}
 			if (!empty($uninvoiceditems)) {
+				// Lines are shown VAT-exclusive (labelled) and VAT-inclusive; Xero lines are VAT-inclusive.
+				$vatrate = (float)($CFG->block_iomad_ecommerce_vat ?? 20);
+				$exvatfactor = $vatrate > 0 ? 1 + ($vatrate / 100) : 1.0;
+				$vatdisplay = trim(trim(number_format(max(0, $vatrate), 1, '.', ''), '0'), '.');
 				// Latest Xero error for this invoice, shown only if newer than the last
 				// successful sync (mapping), so fixed errors disappear on their own.
 				$xerolasterror = $DB->get_record('iomad_xero_invoice_error', ['invoiceid' => $invoiceid]);
@@ -704,24 +711,35 @@ if ($cancelinvoice && confirm_sesskey()) {
 				echo '<input type="hidden" name="sesskey" value="' . sesskey() . '" />';
 				echo '<div class="card mb-3"><div class="card-body">';
 				echo '<h6 class="card-title mb-2">Generate Invoice - select lines</h6>';
-				echo '<p class="text-muted small mb-2">Only selected lines will be sent to Xero. Linked surcharges (Mileage, Accommodation, etc.) for each course are listed underneath and included automatically. Already-invoiced lines are not listed.</p>';
+				echo '<p class="text-muted small mb-2">Only selected lines will be sent to Xero. Linked surcharges (Mileage, Accommodation, etc.) for each course are listed underneath and included automatically. Already-invoiced lines are not listed. Each line shows its amount both VAT-exclusive and VAT-inclusive (site VAT rate ' . $vatdisplay . '%) — Xero lines are VAT-inclusive.</p>';
 				foreach ($uninvoiceditems as $ui) {
 					$linetotal = (float)$ui->price * (int)$ui->license_allocation;
-					echo '<label style="display:block;font-weight:normal;margin-bottom:0;">';
-					echo '<input type="checkbox" name="invoiceitems[]" value="' . (int)$ui->id . '" class="generate-invoice-check" checked /> ';
-					echo s($ui->coursename) . ' <span class="text-muted">(' . s($ui->currency) . ' ' . number_format($linetotal, 2) . ')</span>';
-					echo '</label>';
+					$linetotal_ex = $exvatfactor > 1 ? $linetotal / $exvatfactor : $linetotal;
 					$linked = $linkedcharges[(int)$ui->id] ?? [];
+					// Surcharges are generated together with their course line, so they
+					// join the checkbox's running total when sharing the same currency.
+					$linetotal_check = $linetotal;
+					foreach ($linked as $lc) {
+						if ($lc->currency === $ui->currency) {
+							$linetotal_check += (float)$lc->price;
+						}
+					}
+					echo '<label style="display:block;font-weight:normal;margin-bottom:0;">';
+					echo '<input type="checkbox" name="invoiceitems[]" value="' . (int)$ui->id . '" class="generate-invoice-check" data-linetotal="' . number_format($linetotal_check, 2, '.', '') . '" data-currency="' . s($ui->currency) . '" checked /> ';
+					echo s($ui->coursename) . ' <span class="text-muted">(excl. VAT ' . s($ui->currency) . ' ' . number_format($linetotal_ex, 2) . ' &middot; incl. VAT ' . s($ui->currency) . ' ' . number_format($linetotal, 2) . ')</span>';
+					echo '</label>';
 					if (!empty($linked)) {
 						echo '<ul class="small text-muted" style="margin:0 0 6px 24px;padding-left:16px;list-style:disc;">';
 						foreach ($linked as $lc) {
-							echo '<li>' . s($lc->itemname) . ' <span>(' . s($lc->currency) . ' ' . number_format((float)$lc->price, 2) . ')</span></li>';
+							$lc_ex = $exvatfactor > 1 ? (float)$lc->price / $exvatfactor : (float)$lc->price;
+							echo '<li>' . s($lc->itemname) . ' <span>(excl. VAT ' . s($lc->currency) . ' ' . number_format($lc_ex, 2) . ' &middot; incl. VAT ' . s($lc->currency) . ' ' . number_format((float)$lc->price, 2) . ')</span></li>';
 						}
 						echo '</ul>';
 					} else {
 						echo '<div class="small text-muted" style="margin:0 0 6px 24px;">(no linked surcharges)</div>';
 					}
 				}
+				echo '<div class="small text-muted mb-2" id="generate-invoice-totals"></div>';
 				echo '<div class="mt-2" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">';
 				echo '<button type="button" class="btn btn-sm btn-secondary" id="generate-invoice-all">Select all</button>';
 				echo '<button type="button" class="btn btn-sm btn-secondary" id="generate-invoice-none">Select none</button>';
@@ -747,10 +765,33 @@ if ($cancelinvoice && confirm_sesskey()) {
 				    if (!form) { return; }
 				    var checks = form.querySelectorAll(".generate-invoice-check");
 				    var btn = document.getElementById("generate-invoice-btn");
+				    var totals = document.getElementById("generate-invoice-totals");
+				    var vatRate = ' . json_encode((float)($CFG->block_iomad_ecommerce_vat ?? 20)) . ';
+				    var factor = 1 + (Math.abs(vatRate) / 100);
 				    function updateBtn() {
 				        var any = false;
-				        Array.prototype.forEach.call(checks, function(c) { if (c.checked) { any = true; } });
+				        var incTotal = 0;
+				        var firstcur = null;
+				        var mixed = false;
+				        Array.prototype.forEach.call(checks, function(c) {
+				            if (c.checked) {
+				                any = true;
+				                incTotal += parseFloat(c.getAttribute("data-linetotal")) || 0;
+				                var cur = c.getAttribute("data-currency");
+				                if (firstcur === null) { firstcur = cur; } else if (firstcur !== cur) { mixed = true; }
+				            }
+				        });
 				        btn.disabled = !any;
+				        if (totals) {
+				            if (!any) {
+				                totals.textContent = "Selected lines: none";
+				            } else {
+				                incTotal = Math.round(incTotal * 100) / 100;
+				                var exTotal = Math.round((incTotal / factor) * 100) / 100;
+				                var cur = mixed ? "(mixed currencies) " : (firstcur ? firstcur + " " : "");
+				                totals.textContent = "Selected lines — excl. VAT: " + cur + exTotal.toFixed(2) + " / incl. VAT: " + incTotal.toFixed(2);
+				            }
+				        }
 				    }
 				    Array.prototype.forEach.call(checks, function(c) { c.addEventListener("change", updateBtn); });
 				    document.getElementById("generate-invoice-all").addEventListener("click", function() {
@@ -799,6 +840,8 @@ if ($cancelinvoice && confirm_sesskey()) {
 	    if (empty($cancellableitems)) {
 	        echo '<p class="text-muted">All lines have already been cancelled.</p>';
 	    } else {
+	        $vatrate = (float)($CFG->block_iomad_ecommerce_vat ?? 20);
+	        $exvatfactor = $vatrate > 0 ? 1 + ($vatrate / 100) : 1.0;
 	        // Sum only the cancellable items shown so the refund ceiling is correct.
 	        $invoicetotal_raw = 0.0;
 	        $currency = '';
@@ -809,6 +852,7 @@ if ($cancelinvoice && confirm_sesskey()) {
 	            }
 	        }
 	        $invoicetotal = number_format($invoicetotal_raw, 2, '.', '');
+	        $invoicetotal_ex = number_format($exvatfactor > 1 ? $invoicetotal_raw / $exvatfactor : $invoicetotal_raw, 2);
 
 	        echo '<form method="post">';
 	        echo '<input type="hidden" name="id" value="' . $invoiceid . '" />';
@@ -817,7 +861,7 @@ if ($cancelinvoice && confirm_sesskey()) {
 	        echo '<input type="hidden" name="sesskey" value="' . sesskey() . '" />';
 
 	        echo '<table class="table table-sm mb-3">';
-	        echo '<thead><tr><th style="width:40px;"></th><th>Course</th><th class="text-right">Qty</th><th class="text-right">Unit price</th><th class="text-right">Total</th></tr></thead>';
+	        echo '<thead><tr><th style="width:40px;"></th><th>Course</th><th class="text-right">Qty</th><th class="text-right">Unit price (excl. VAT)</th><th class="text-right">Total (incl. VAT)</th></tr></thead>';
 	        echo '<tbody>';
 	        foreach ($cancellableitems as $ci) {
 	            $course = $DB->get_record_sql(
@@ -827,7 +871,8 @@ if ($cancelinvoice && confirm_sesskey()) {
 	            $displayname = $course ? $course->fullname : s($ci->itemname);
 	            $linetotal_raw = (float)$ci->price * (int)$ci->license_allocation;
 	            $linetotal = number_format($linetotal_raw, 2);
-	            $unitprice = number_format((float)$ci->price, 2);
+	            $exvatunit = $exvatfactor > 1 ? (float)$ci->price / $exvatfactor : (float)$ci->price;
+	            $unitprice = number_format($exvatunit, 2);
 	            echo '<tr>';
 	            echo '<td><input type="checkbox" name="cancelitems[]" value="' . (int)$ci->id . '" class="cancel-line-check" data-linetotal="' . number_format($linetotal_raw, 2, '.', '') . '" /></td>';
 	            echo '<td>' . s($displayname) . '</td>';
@@ -847,12 +892,20 @@ if ($cancelinvoice && confirm_sesskey()) {
 	            echo '<option value="none">No refund</option>';
 	            echo '<option value="partial">Partial refund</option>';
 	        }
-	        echo '<option value="full" id="opt-full-refund">Full refund (' . s($currency) . ' 0.00)</option>';
+	        echo '<option value="full" id="opt-full-refund">Full refund (excl. VAT ' . s($currency) . ' ' . $invoicetotal_ex . ' / incl. VAT ' . s($currency) . ' ' . $invoicetotal . ')</option>';
 	        echo '</select>';
 	        echo '</div>';
 	        echo '<div class="mb-3" id="partial-refund-amount" style="display:none;">';
-	        echo '<label for="id_refundamount"><strong>Partial refund amount</strong></label>';
+	        echo '<label><strong>Partial refund amount</strong></label>';
+	        echo '<p class="text-muted small mb-1">Enter the amount with or without VAT in either box — the other is calculated automatically using the site VAT rate. The VAT-inclusive amount is the value applied to the refund.</p>';
+	        echo '<div style="display:flex;gap:12px;flex-wrap:wrap;">';
+	        echo '<div><label class="small" for="id_refundamount_exvat">Amount (excl. VAT)</label>';
+	        echo '<input id="id_refundamount_exvat" type="number" step="0.01" min="0" max="0" class="form-control" style="max-width:220px;">';
+	        echo '</div>';
+	        echo '<div><label class="small" for="id_refundamount">Amount (incl. VAT)</label>';
 	        echo '<input id="id_refundamount" type="number" step="0.01" min="0" max="0" name="refundamount" value="0" class="form-control" style="max-width:220px;">';
+	        echo '</div>';
+	        echo '</div>';
 	        echo '</div>';
 
 	        echo '<button type="submit" class="btn btn-danger" id="cancel-lines-btn" disabled>Cancel selected lines</button>';
@@ -865,8 +918,12 @@ if ($cancelinvoice && confirm_sesskey()) {
 	            var refundType = document.getElementById("id_refundtype");
 	            var partialDiv = document.getElementById("partial-refund-amount");
 	            var partialInput = document.getElementById("id_refundamount");
+	            var partialExInput = document.getElementById("id_refundamount_exvat");
 	            var fullOption = document.getElementById("opt-full-refund");
 	            var currency = ' . json_encode($currency) . ';
+	            var vatRate = ' . json_encode((float)($CFG->block_iomad_ecommerce_vat ?? 20)) . ';
+	            var factor = 1 + (Math.abs(vatRate) / 100);
+	            var round2 = function(n) { return Math.round(n * 100) / 100; };
 
 	            function getSelectedTotal() {
 	                var total = 0;
@@ -886,15 +943,27 @@ if ($cancelinvoice && confirm_sesskey()) {
 	                return refundType.value !== "";
 	            }
 
+	            function syncExFromInc() {
+	                var v = parseFloat(partialInput.value);
+	                partialExInput.value = isNaN(v) ? "" : round2(v / factor).toFixed(2);
+	            }
+
+	            function syncIncFromEx() {
+	                var v = parseFloat(partialExInput.value);
+	                partialInput.value = isNaN(v) ? "" : round2(v * factor).toFixed(2);
+	            }
+
 	            function updateSelectionState() {
 	                var total = getSelectedTotal();
 	                btn.disabled = !hasSelection() || !hasRefundType();
 	                var formatted = total.toFixed(2);
-	                fullOption.textContent = "Full refund (" + currency + " " + formatted + ")";
+	                fullOption.textContent = "Full refund (excl. VAT " + currency + " " + round2(total / factor).toFixed(2) + " / incl. VAT " + currency + " " + formatted + ")";
 	                partialInput.setAttribute("max", formatted);
+	                partialExInput.setAttribute("max", round2(total / factor).toFixed(2));
 	                if (parseFloat(partialInput.value) > total) {
 	                    partialInput.value = formatted;
 	                }
+	                syncExFromInc();
 	            }
 
 	            function toggleRefund() {
@@ -910,6 +979,8 @@ if ($cancelinvoice && confirm_sesskey()) {
 	                toggleRefund();
 	                updateSelectionState();
 	            });
+	            partialInput.addEventListener("input", syncExFromInc);
+	            partialExInput.addEventListener("input", syncIncFromEx);
 	            updateSelectionState();
 	            toggleRefund();
 	        })();
