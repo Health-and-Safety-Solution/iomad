@@ -173,6 +173,30 @@ class event_vault implements event_vault_interface {
             $limitnum,
             $ignorehidden
         ))) {
+
+//Begin Customisation: Accellier Ltd: Show CRM calendar in Portal
+global $DB;
+$get_User = $DB->get_record('user', ['id' => $usersfilter[0]]);
+//$get_User->email = 'info@acornsafety.co.uk';
+
+if (str_contains($get_User->institution, 'acorn')) {
+	// Initializes a new cURL session
+	$ch = curl_init();
+
+	// Set URL and other appropriate options
+	curl_setopt($ch, CURLOPT_URL, "https://acornsafety.accellier.net/crm/user_schedule.php?startdate=".date('Y-m-d',$timestartfrom)."&lastdate=".date('Y-m-d',$timestartto)."&uiuio=bdkshdhksqGJKk78ffjkjljl$@6ghjghj&userid=".$get_User->id."&email=".$get_User->email);
+	curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+	curl_setopt($ch, CURLOPT_HEADER, 0);
+
+	// Grab URL and pass it to the browser
+	$crm_res = curl_exec($ch);
+	curl_close($ch);
+	$crm_object_array = json_decode($crm_res);
+	if (!(empty($crm_object_array))) {$records = array_merge($records, $crm_object_array); }
+	//print_r($records); exit;
+}
+//End Customisation
+
             foreach ($records as $record) {
                 if ($event = $this->transform_from_database_record($record)) {
                     $filtertest = $filter ? $filter($event) : true;
